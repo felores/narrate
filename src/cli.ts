@@ -26,7 +26,13 @@ const HELP = `narrate - speak text via the narrate TTS gateway
 
 Usage:
   narrate [options] "text to speak"
+  narrate verify [--test]
   echo "text" | narrate [options]
+
+Subcommands:
+  verify                Print server + provider health (no API calls)
+  verify --test         Same, plus smoke-test each configured provider
+                        (WARNING: each cloud test consumes ~1 API call)
 
 Options:
   -v, --voice NAME      Voice preset from voices.json (e.g. fred, researcher)
@@ -45,6 +51,8 @@ Examples:
   narrate --voice researcher "Findings ready"
   narrate --provider system --id Samantha "Local fallback"
   narrate --provider voicebox --voice Morgan "Local cloned voice"
+  narrate verify                  # health snapshot
+  narrate verify --test           # also play 1 sample per provider
 `;
 
 function parseArgs(argv: string[]): CliArgs {
@@ -111,8 +119,120 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString("utf-8").trim();
 }
 
+interface HealthResponse {
+  status: string;
+  port: number;
+  default_provider: string;
+  default_voice: string | null;
+  voices_path: string | null;
+  voices: string[];
+  providers: Record<string, { configured: boolean; reason?: string }>;
+}
+
+async function runVerify(serverUrl: string, runTests: boolean): Promise<void> {
+  let health: HealthResponse;
+  try {
+    const res = await fetch(`${serverUrl}/health`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!res.ok) fatal(`Server unhealthy at ${serverUrl} (${res.status})`);
+    health = (await res.json()) as HealthResponse;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    fatal(`Server not reachable at ${serverUrl}: ${msg}`);
+  }
+
+  console.log(`narrate doctor — checking ${serverUrl}`);
+  console.log("");
+  console.log(`✅ server     ${health.status} on port ${health.port}`);
+  console.log(
+    `   default   provider=${health.default_provider} voice=${health.default_voice ?? "(none)"}`,
+  );
+  console.log(
+    `   voices    ${health.voices_path ?? "(none — only raw voice_id calls work)"}`,
+  );
+  console.log(
+    `   presets   ${health.voices.length} (${health.voices.slice(0, 8).join(", ")}${health.voices.length > 8 ? "..." : ""})`,
+  );
+  console.log("");
+  console.log("providers:");
+  for (const [name, p] of Object.entries(health.providers)) {
+    const icon = p.configured ? "✅" : "⚪";
+    const reason = p.reason ? ` (${p.reason})` : "";
+    console.log(`  ${icon} ${name}${reason}`);
+  }
+
+  if (!runTests) {
+    console.log("");
+    console.log(
+      "(run `narrate verify --test` to play a short sample on each configured provider)",
+    );
+    return;
+  }
+
+  console.log("");
+  console.log("running smoke tests on configured providers...");
+  for (const [name, p] of Object.entries(health.providers)) {
+    if (!p.configured) continue;
+    process.stdout.write(`  → ${name}... `);
+    try {
+      const sampleVoice = sampleVoiceFor(name);
+      const t0 = Date.now();
+      const res = await fetch(`${serverUrl}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Test ${name}`,
+          provider: name,
+          voice_id: sampleVoice,
+          voice_enabled: true,
+        }),
+      });
+      const ms = Date.now() - t0;
+      const body = (await res.json()) as { status: string; message?: string };
+      if (body.status === "success") {
+        console.log(`OK (${ms}ms, voice=${sampleVoice})`);
+      } else {
+        console.log(`FAILED — ${body.message ?? "(no message)"}`);
+      }
+    } catch (err) {
+      console.log(
+        `FAILED — ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+}
+
+function sampleVoiceFor(provider: string): string {
+  switch (provider) {
+    case "elevenlabs":
+      return (
+        process.env.NARRATE_TEST_ELEVENLABS_VOICE ?? "21m00Tcm4TlvDq8ikWAM"
+      ); // Rachel (public)
+    case "openai":
+      return "alloy";
+    case "gemini":
+      return "Kore";
+    case "xai":
+      return "ara";
+    case "voicebox":
+      return process.env.NARRATE_TEST_VOICEBOX_PROFILE ?? "default";
+    case "system":
+      return process.platform === "darwin" ? "Samantha" : "default";
+    default:
+      return "default";
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+
+  // Subcommand: verify
+  if (args.text === "verify" || args.text.startsWith("verify ")) {
+    const runTests =
+      args.text.includes("--test") || process.argv.includes("--test");
+    return runVerify(args.serverUrl, runTests);
+  }
 
   if (!args.text && !process.stdin.isTTY) {
     args.text = await readStdin();
