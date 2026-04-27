@@ -36,9 +36,42 @@ interface VoiceboxProfile {
   language?: string;
 }
 
+const PROFILE_CACHE_TTL_MS = 60_000;
+
 export class VoiceboxProvider implements Provider {
   readonly name = "voicebox";
   readonly label = "Voicebox (local)";
+
+  private profileCache: Map<string, VoiceboxProfile> | null = null;
+  private profileCacheAt = 0;
+
+  /**
+   * Look up profile metadata (id, language) by name.
+   * Voicebox /speak does NOT auto-pull language from the profile — it
+   * defaults to "en" if not specified — so we resolve it here. Cached
+   * 60s to avoid an extra round-trip per generation.
+   */
+  private async resolveProfile(name: string): Promise<VoiceboxProfile | null> {
+    const now = Date.now();
+    if (
+      !this.profileCache ||
+      now - this.profileCacheAt > PROFILE_CACHE_TTL_MS
+    ) {
+      try {
+        const res = await fetch(`${VOICEBOX_URL}/profiles`, {
+          headers: { "X-Voicebox-Client-Id": CLIENT_ID },
+          signal: AbortSignal.timeout(2000),
+        });
+        if (!res.ok) return null;
+        const profiles = (await res.json()) as VoiceboxProfile[];
+        this.profileCache = new Map(profiles.map((p) => [p.name ?? p.id, p]));
+        this.profileCacheAt = now;
+      } catch {
+        return null;
+      }
+    }
+    return this.profileCache?.get(name) ?? null;
+  }
 
   async health(): Promise<ProviderHealth> {
     try {
@@ -87,7 +120,21 @@ export class VoiceboxProvider implements Provider {
       return { buffer: await response.arrayBuffer(), format: "wav" };
     }
 
+    // Resolve language: explicit cfg.language wins; otherwise pull it
+    // from the profile (voicebox /speak does NOT default to
+    // profile.language — it defaults to "en" — so a Spanish-trained voice
+    // would speak English without this lookup).
+    let language = cfg.language;
+    if (!language) {
+      const profile = await this.resolveProfile(voice);
+      language = profile?.language;
+    }
+
     // Default: /speak — voicebox plays through its own audio pipeline.
+    const speakBody: Record<string, unknown> = { text, profile: voice };
+    if (language) speakBody.language = language;
+    if (cfg.personality !== undefined) speakBody.personality = cfg.personality;
+
     const response = await fetch(`${VOICEBOX_URL}/speak`, {
       method: "POST",
       signal: opts.signal,
@@ -95,13 +142,7 @@ export class VoiceboxProvider implements Provider {
         "Content-Type": "application/json",
         "X-Voicebox-Client-Id": CLIENT_ID,
       },
-      body: JSON.stringify({
-        text,
-        profile: voice,
-        ...(cfg.personality !== undefined
-          ? { personality: cfg.personality }
-          : {}),
-      }),
+      body: JSON.stringify(speakBody),
     });
     await assertOk(response, this.name);
     return { buffer: new ArrayBuffer(0), format: "mp3", delegated: true };
