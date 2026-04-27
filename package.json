@@ -1,0 +1,48 @@
+{
+  "name": "narrate",
+  "version": "0.1.0",
+  "description": "Provider-agnostic TTS gateway and CLI for AI coding harnesses (Claude Code, OpenCode, ChatGPT Codex, Cursor, Windsurf)",
+  "type": "module",
+  "scripts": {
+    "server": "bun run src/server.ts",
+    "cli": "bun run src/cli.ts",
+    "dev": "bun run --watch src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "bin": {
+    "narrate": "./src/cli.ts"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "license": "MIT",
+  "author": "Felo Restrepo <felorestre@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/felores/narrate.git"
+  },
+  "homepage": "https://github.com/felores/narrate",
+  "bugs": "https://github.com/felores/narrate/issues",
+  "keywords": [
+    "tts",
+    "text-to-speech",
+    "voice",
+    "ai-agents",
+    "claude-code",
+    "opencode",
+    "codex",
+    "cursor",
+    "windsurf",
+    "elevenlabs",
+    "openai-tts",
+    "gemini-tts",
+    "xai-tts",
+    "voicebox",
+    "narrate",
+    "cli"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.5.0"
+  }
+}

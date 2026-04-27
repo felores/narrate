@@ -1,0 +1,45 @@
+{
+  "default_voice": "fred",
+  "default_rate": 175,
+  "voices": {
+    "fred": {
+      "provider": "elevenlabs",
+      "voice_id": "s3TPKV1kjDlVtZbl4Ksh",
+      "rate_wpm": 228,
+      "rate_multiplier": 1.35,
+      "description": "Default ElevenLabs voice — replace voice_id with your own",
+      "type": "Premium"
+    },
+    "researcher": {
+      "provider": "openai",
+      "voice_id": "nova",
+      "description": "Female analytical voice — research findings"
+    },
+    "engineer": {
+      "provider": "openai",
+      "voice_id": "alloy",
+      "description": "Steady professional voice — implementation reports"
+    },
+    "ara": {
+      "provider": "xai",
+      "voice_id": "ara",
+      "description": "Grok TTS feminine voice"
+    },
+    "kore": {
+      "provider": "gemini",
+      "voice_id": "Kore",
+      "description": "Gemini multilingual voice"
+    },
+    "morgan_local": {
+      "provider": "voicebox",
+      "voice_id": "Morgan",
+      "description": "Voicebox local profile (requires voicebox running on :17493)"
+    },
+    "samantha": {
+      "provider": "system",
+      "voice_id": "Samantha",
+      "description": "macOS Samantha — zero-dep fallback",
+      "type": "Standard"
+    }
+  }
+}

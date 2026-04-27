@@ -1,0 +1,6 @@
+{
+  "port": 8888,
+  "default_provider": "elevenlabs",
+  "default_voice": "fred",
+  "default_rate": 175
+}

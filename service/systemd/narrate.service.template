@@ -1,0 +1,17 @@
+[Unit]
+Description=narrate TTS gateway
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__NARRATE_DIR__
+ExecStart=__BUN_PATH__ run __NARRATE_DIR__/src/server.ts
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:__NARRATE_DIR__/logs/narrate.log
+StandardError=append:__NARRATE_DIR__/logs/narrate-error.log
+Environment=HOME=__HOME__
+Environment=PATH=__PATH_VALUE__
+
+[Install]
+WantedBy=default.target
