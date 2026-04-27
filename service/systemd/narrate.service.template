@@ -8,8 +8,11 @@ WorkingDirectory=__NARRATE_DIR__
 ExecStart=__BUN_PATH__ run __NARRATE_DIR__/src/server.ts
 Restart=on-failure
 RestartSec=5
-StandardOutput=append:__NARRATE_DIR__/logs/narrate.log
-StandardError=append:__NARRATE_DIR__/logs/narrate-error.log
+# systemd-only: captures pre-init startup output + crashes.
+# The real per-request log is logs/narrate.log written by the
+# in-process rotating logger (src/logger.ts).
+StandardOutput=append:__NARRATE_DIR__/logs/launchd-stdout.log
+StandardError=append:__NARRATE_DIR__/logs/launchd-stderr.log
 Environment=HOME=__HOME__
 Environment=PATH=__PATH_VALUE__
 

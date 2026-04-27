@@ -34,11 +34,14 @@
         <true/>
     </dict>
 
+    <!-- launchd-only: captures pre-init startup output + crashes.        -->
+    <!-- The real per-request log is logs/narrate.log written by the      -->
+    <!-- in-process rotating logger (src/logger.ts).                      -->
     <key>StandardOutPath</key>
-    <string>__NARRATE_DIR__/logs/narrate.log</string>
+    <string>__NARRATE_DIR__/logs/launchd-stdout.log</string>
 
     <key>StandardErrorPath</key>
-    <string>__NARRATE_DIR__/logs/narrate-error.log</string>
+    <string>__NARRATE_DIR__/logs/launchd-stderr.log</string>
 
     <key>ThrottleInterval</key>
     <integer>10</integer>
