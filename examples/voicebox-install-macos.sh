@@ -65,14 +65,12 @@ Next steps:
   4. Verify from narrate:
         narrate verify
      The voicebox row should turn from ⚪ to ✅.
-  5. Add a voicebox preset to ~/.config/narrate/voices.json:
-        "morgan_local": {
-          "provider": "voicebox",
-          "voice_id": "Morgan",
-          "description": "Voicebox local clone"
-        }
-  6. Use it:
-        narrate --voice morgan_local "Test local"
+  5. Create a profile from a Kokoro preset (engine ≠ profile in voicebox):
+        ./voicebox-create-profile.sh         # creates "Bella" from Kokoro af_bella
+        ./voicebox-create-profile.sh Adam kokoro am_adam
+     (Or do it through the Voicebox UI — same result.)
+  6. Speak through the new profile:
+        narrate --provider voicebox --id Bella "Test local"
 
 Troubleshooting:
   - If macOS blocks the app: System Settings → Privacy & Security → "Open Anyway"

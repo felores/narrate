@@ -30,10 +30,20 @@
       "voice_id": "Kore",
       "description": "Gemini multilingual voice"
     },
-    "morgan_local": {
+    "bella_local": {
       "provider": "voicebox",
-      "voice_id": "Morgan",
-      "description": "Voicebox local profile (requires voicebox running on :17493)"
+      "voice_id": "Bella",
+      "description": "Kokoro Bella (en-female) — create with examples/voicebox-create-profile.sh"
+    },
+    "dora_local": {
+      "provider": "voicebox",
+      "voice_id": "Dora",
+      "description": "Kokoro Dora (es-female) — create with examples/voicebox-create-profile.sh Dora kokoro ef_dora es"
+    },
+    "george_local": {
+      "provider": "voicebox",
+      "voice_id": "George",
+      "description": "Kokoro George (en-male, UK) — create with examples/voicebox-create-profile.sh George kokoro bm_george en"
     },
     "samantha": {
       "provider": "system",
