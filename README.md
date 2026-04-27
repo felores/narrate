@@ -22,38 +22,65 @@ narrate verify                                     # health snapshot
 | **[Voicebox](https://github.com/jamiepine/voicebox)** | Local proxy | none | Auto-detects on `:17493` — voice cloning, 7 local engines |
 | **System (`say` / `espeak`)** | Local | none | Zero-dep fallback, works offline |
 
-## Quick start
+## Install
+
+Three options, pick one:
+
+### Homebrew (macOS, recommended)
+
+```bash
+brew tap felores/narrate
+brew install narrate
+```
+
+This installs `narrate` and `narrate-server` into `/opt/homebrew/bin`. Run as a background service with `brew services start narrate`. Bun is pulled in as a dependency automatically.
+
+### curl install script (macOS / Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/install.sh -o /tmp/narrate-install.sh
+bash /tmp/narrate-install.sh
+```
+
+Clones to `~/.local/share/narrate` and writes wrappers to `~/.local/bin/{narrate,narrate-server}`. Requires [bun](https://bun.sh) (the script will tell you if missing).
+
+Env overrides: `NARRATE_DIR`, `BIN_DIR`, `NARRATE_REF` (branch/tag).
+
+### Manual git clone (for development)
 
 ```bash
 git clone https://github.com/felores/narrate.git ~/Documents/GitHub/narrate
 cd ~/Documents/GitHub/narrate
 bun install
-
-# Config (XDG)
-mkdir -p ~/.config/narrate
-cp examples/config.example.json ~/.config/narrate/config.json
-cp voices.json.example          ~/.config/narrate/voices.json
-
-# Add API keys to ~/.env (or your shell init)
-echo 'OPENAI_API_KEY=sk-...'      >> ~/.env
-echo 'ELEVENLABS_API_KEY=...'     >> ~/.env
-
-# Run the server
 bun run src/server.ts &
-
-# Test
-bun run src/cli.ts verify          # structural health
-bun run src/cli.ts "Hello world"   # speak
+bun run src/cli.ts verify
 ```
 
-### Run as a service (auto-start at login)
+## Configure
 
 ```bash
-# macOS
-./service/launchd/install.sh
+# API keys (any subset — narrate works with whatever's configured)
+export ELEVENLABS_API_KEY=...
+export OPENAI_API_KEY=sk-...
+export GEMINI_API_KEY=...
+export XAI_API_KEY=...
+# (or put them in ~/.env — narrate auto-loads it)
 
-# Linux
-./service/systemd/install.sh
+# Optional: copy example voice presets
+mkdir -p ~/.config/narrate
+cp $(brew --prefix narrate 2>/dev/null)/libexec/voices.json.example ~/.config/narrate/voices.json \
+  || cp ~/.local/share/narrate/voices.json.example ~/.config/narrate/voices.json
+```
+
+## Run as a service (auto-start at login)
+
+```bash
+# Homebrew
+brew services start narrate
+
+# Manual install (curl/git path)
+~/Documents/GitHub/narrate/service/launchd/install.sh   # macOS
+~/Documents/GitHub/narrate/service/systemd/install.sh   # Linux
 ```
 
 ## Verify your installation

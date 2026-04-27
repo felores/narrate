@@ -3,6 +3,13 @@
 ## v0.3.0 — 2026-04-27
 
 ### Added
+- **Homebrew install** via the `felores/narrate` tap:
+  ```bash
+  brew tap felores/narrate
+  brew install narrate
+  ```
+  Includes a `brew services` recipe so `brew services start narrate` auto-starts the server at login. Tap repo: https://github.com/felores/homebrew-narrate
+- **curl install script** at `install.sh` (root of repo). Clones to `~/.local/share/narrate` and writes wrappers (`narrate`, `narrate-server`) to `~/.local/bin`. Idempotent — re-running updates an existing install. Honors `NARRATE_DIR`, `BIN_DIR`, `NARRATE_REF` env vars.
 - **MCP server at `/mcp`** — narrate now speaks the Model Context Protocol over Streamable HTTP. Three tools exposed:
   - `speak({ text, voice?, voice_id?, provider? })` — generate and play audio
   - `list_voices()` — preset registry from voices.json
