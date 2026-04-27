@@ -1,7 +1,31 @@
 # narrate + Cursor / Windsurf / Cline
 
-These editors don't have a hook system as rich as Claude Code, but they can all
-shell out to `narrate` from tasks, commands, or scripts.
+All three have native MCP support. The MCP path is by far the cleanest — drop one config block in their MCP settings and the agent gets `narrate.speak` as a real tool.
+
+## Recommended: MCP
+
+Add to the client's MCP config (usually `.mcp.json`, `~/.cursor/mcp.json`, or via Settings UI):
+
+```json
+{
+  "mcpServers": {
+    "narrate": {
+      "url": "http://localhost:8888/mcp",
+      "headers": { "X-Narrate-Client-Id": "cursor" }
+    }
+  }
+}
+```
+
+Change the client id per editor (`cursor`, `windsurf`, `cline`) so the server logs tell you which one is calling. Three tools become available:
+
+- `narrate.speak({ text, voice?, provider?, voice_id? })`
+- `narrate.list_voices()`
+- `narrate.list_providers()`
+
+Coexists with the voicebox MCP server — different ports (`8888` vs `17493`), same protocol.
+
+## Fallback: shell tasks (no MCP)
 
 ## Cursor
 

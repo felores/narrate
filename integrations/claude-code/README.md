@@ -1,7 +1,31 @@
 # narrate + Claude Code
 
-Wire `narrate` into Claude Code's hook system so the agent speaks turn results
-out loud.
+Three integration paths, in order of recommendation:
+
+1. **MCP server** (recommended for v0.3+) — one command, no code, native tool integration.
+2. **Stop hook** — TS hook in `~/.claude/hooks/` that extracts a marker line and shells out to `narrate`.
+3. **Slash command / shell alias** — for ad-hoc narration.
+
+## Path 1: MCP (recommended)
+
+```bash
+claude mcp add narrate \
+  --transport http \
+  --url http://localhost:8888/mcp \
+  --header "X-Narrate-Client-Id: claude-code"
+```
+
+Claude Code now has three tools:
+
+- `mcp__narrate__speak({ text, voice?, provider?, voice_id? })`
+- `mcp__narrate__list_voices()`
+- `mcp__narrate__list_providers()`
+
+Tell the agent in your CLAUDE.md or a prompt: "When you complete a task, call `mcp__narrate__speak` with a one-line summary."
+
+Coexists with [voicebox MCP](https://github.com/jamiepine/voicebox) — they listen on different ports (8888 vs 17493) and use different `X-*-Client-Id` headers.
+
+## Path 2: Stop hook (legacy / when you want a marker convention)
 
 ## Pattern
 

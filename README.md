@@ -89,14 +89,39 @@ The integration surface is **CLI** (`narrate "..."`) or **HTTP** (`POST localhos
 
 | Harness | Method | Recipe |
 |---|---|---|
-| **Claude Code** | Stop hook | [`integrations/claude-code/`](integrations/claude-code/) — TS hook + `🤖 BOT:` marker convention |
+| **Claude Code** | MCP (recommended) **or** stop hook | [`integrations/claude-code/`](integrations/claude-code/) |
+| **Cursor / Windsurf / Cline** | MCP (recommended) | [`integrations/cursor/`](integrations/cursor/) |
 | **OpenCode** | Plugin (`@opencode-ai/plugin`) | [`integrations/opencode/`](integrations/opencode/) — real plugin contract reference |
 | **Pi (pi-mono)** | `agent.subscribe('turn_end')` | [`integrations/pi/`](integrations/pi/) — `pi-agent-core` event subscription |
 | **ChatGPT Codex CLI** | Wrapper script | [`integrations/codex/`](integrations/codex/) |
-| **Cursor / Windsurf / Cline** | Tasks / shell | [`integrations/cursor/`](integrations/cursor/) |
 | **Shell scripts / cron / CI** | Direct CLI | [`integrations/shell/`](integrations/shell/) — aliases + helpers |
 
-> **MCP server** is on the v2 roadmap. Once shipped, every MCP-aware harness gets `narrate.speak` for free, no plugin code needed.
+### MCP — universal one-liner
+
+Any MCP-aware harness gets `narrate.speak`, `narrate.list_voices`, and `narrate.list_providers` for free:
+
+```bash
+# Claude Code
+claude mcp add narrate \
+  --transport http \
+  --url http://localhost:8888/mcp \
+  --header "X-Narrate-Client-Id: claude-code"
+```
+
+Or in `.mcp.json` for Cursor/Windsurf/VS Code/Cline:
+
+```json
+{
+  "mcpServers": {
+    "narrate": {
+      "url": "http://localhost:8888/mcp",
+      "headers": { "X-Narrate-Client-Id": "cursor" }
+    }
+  }
+}
+```
+
+Coexists with [voicebox's MCP server](https://github.com/jamiepine/voicebox) — they live on different ports (`8888` vs `17493`).
 
 ## HTTP API
 
@@ -112,6 +137,12 @@ curl http://localhost:8888/health
 
 # All voice presets
 curl http://localhost:8888/voices
+
+# MCP endpoint (Streamable HTTP, JSON-RPC 2.0)
+curl -X POST http://localhost:8888/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
 The server logs every request with provider, voice, latency, and client id — tail `~/Documents/GitHub/narrate/logs/narrate.log` (or wherever your service writes) for full observability.
@@ -148,7 +179,7 @@ Backward-compat: a v1 `voices.json` (no `provider` field, just `voice_name`) is 
 | Engines | Cloud + local proxy + system | 7 local engines (MLX/CUDA) |
 | Voice cloning | No (uses provider voices) | Yes (zero-shot) |
 | Dictation (STT) | No | Yes (Whisper hotkey) |
-| MCP server | v2 roadmap | Yes (built-in `/mcp`) |
+| MCP server | Yes (`/mcp`, v0.3+) | Yes (built-in `/mcp` on :17493) |
 | Footprint | < 1 MB | GB of models |
 | Best for | Drop into any agent harness or script | Privacy-first studio workflows |
 
@@ -202,7 +233,9 @@ narrate/
 
 ## Status
 
-**v0.2.0 (in development)** — per-request observability, `narrate verify` doctor, real OpenCode/Pi integrations, voicebox install helper.
+**v0.3.0** — MCP server at `/mcp` (tools: `speak`, `list_voices`, `list_providers`). Universal harness adapter: any MCP-aware client integrates with one config block.
+
+**v0.2.0** — per-request observability, `narrate verify` doctor, real OpenCode/Pi integrations, voicebox install helper.
 
 **v0.1.0** — initial release: 6 providers, CLI, HTTP server, voices.json v2 schema, launchd + systemd, 5 harness integrations.
 

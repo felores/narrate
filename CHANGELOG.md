@@ -1,6 +1,26 @@
 # Changelog
 
-## v0.2.0 — 2026-04-27 (in development)
+## v0.3.0 — 2026-04-27
+
+### Added
+- **MCP server at `/mcp`** — narrate now speaks the Model Context Protocol over Streamable HTTP. Three tools exposed:
+  - `speak({ text, voice?, voice_id?, provider? })` — generate and play audio
+  - `list_voices()` — preset registry from voices.json
+  - `list_providers()` — provider health matrix
+- **Universal harness adapter**: any MCP-aware client (Claude Code, Cursor, Windsurf, Cline, VS Code MCP) integrates with one config line:
+  ```bash
+  claude mcp add narrate --transport http --url http://localhost:8888/mcp \
+    --header "X-Narrate-Client-Id: claude-code"
+  ```
+  Or via `.mcp.json` for HTTP MCP clients. Coexists with voicebox's MCP server (different ports).
+- **Per-request `/mcp` logging** — same observability format as `/notify` (method, status, latency, client id).
+
+### Implementation notes
+- Uses `@modelcontextprotocol/sdk@1.29.0` with `WebStandardStreamableHTTPServerTransport` (Bun/Web-API native — no Node.js http types).
+- Stateless mode: fresh transport per request to avoid message-id collisions across clients (per SDK guidance).
+- Mounted on the same Bun server as the existing HTTP API — no separate process or port.
+
+## v0.2.0 — 2026-04-27
 
 ### Added
 - **Per-request server logging** — every `/notify` and `/pai` request logs provider, voice, byte size, latency, client IP, `X-Narrate-Client-Id` header, and user-agent. Errors logged with timing. Tail `logs/narrate.log` for full observability.
