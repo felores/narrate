@@ -1,4 +1,19 @@
 # Changelog
+## v0.3.1 — 2026-04-27
+
+### Added
+- **In-process log rotation** in `src/logger.ts`. Replaces global `console.log`/`console.error` with size-rotating file writers.
+  - `NARRATE_LOG_MAX_BYTES` (default 10 MiB) — rotation threshold
+  - `NARRATE_LOG_KEEP` (default 5) — number of rotations to keep
+  - `NARRATE_LOG_DISABLED=1` — opt out (raw stdout/stderr, useful for `bun run` dev)
+  - Files rotate: `narrate.log` → `narrate.log.1` → ... → `narrate.log.5` (oldest dropped)
+- launchd / systemd templates updated to redirect their own stdout/stderr to `logs/launchd-stdout.log` / `logs/launchd-stderr.log` (a separate channel for pre-init startup output and crashes — never grows during normal operation).
+- **Voicebox `language` fix** (`aede995`): the voicebox provider now resolves `profile.language` from voicebox's `/profiles` (cached 60s) and passes it to `/speak`. Spanish-trained voices (Dora, Alex via `ef_dora` / `em_alex`) now correctly speak Spanish. Override via `providerConfig.language`.
+- **Comprehensive README** covering install (3 paths), per-provider setup, voicebox deep dive, voices.json schema, full CLI / HTTP API / MCP tool references, configuration precedence, run-as-service, log rotation, architecture diagram, project layout, narrate-vs-voicebox comparison, roadmap, troubleshooting, and contributing.
+
+### Notes
+- Existing service users must rerun `service/launchd/install.sh` (or systemd equivalent) to pick up the new log paths.
+
 
 ## v0.3.0 — 2026-04-27
 

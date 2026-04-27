@@ -2,38 +2,80 @@
 
 > Provider-agnostic TTS gateway and CLI for AI coding harnesses.
 
-`narrate` is a lightweight CLI and HTTP server that lets any AI coding harness — **Claude Code, OpenCode, Pi, ChatGPT Codex, Cursor, Windsurf, Cline** — or any shell script speak through any TTS provider, cloud or local. One command, one HTTP endpoint, six providers, every harness.
+`narrate` is a single small process — a Bun HTTP server with an MCP endpoint and a CLI — that lets **any** AI coding harness (Claude Code, OpenCode, Pi, Cursor, Windsurf, Cline, ChatGPT Codex) and any shell script speak through any TTS provider. Six providers ship in v0.3, cloud and local. One config, one server, every voice.
 
 ```bash
-narrate "Deploy complete"                          # default voice/provider
-narrate --voice researcher "Findings ready"        # preset
-narrate --provider system --id Samantha "Local"    # zero-dep fallback
+narrate "Deploy complete"                          # speak via the default voice
+narrate --voice researcher "Findings ready"        # named preset from voices.json
+narrate --provider voicebox --id Bella "Local"     # local model (voicebox)
 narrate verify                                     # health snapshot
 ```
 
-## Providers (v1)
+---
+
+- [Why narrate](#why-narrate)
+- [Providers](#providers)
+- [Install](#install)
+- [Configure](#configure)
+- [Quickstart by interface](#quickstart-by-interface)
+- [Use it from each harness](#use-it-from-each-harness)
+- [Provider setup detail](#provider-setup-detail)
+- [Voicebox deep dive](#voicebox-deep-dive)
+- [voices.json — voice presets](#voicesjson--voice-presets)
+- [CLI reference](#cli-reference)
+- [HTTP API reference](#http-api-reference)
+- [MCP tools reference](#mcp-tools-reference)
+- [Configuration precedence](#configuration-precedence)
+- [Run as a service](#run-as-a-service)
+- [Logging and observability](#logging-and-observability)
+- [Architecture](#architecture)
+- [Project layout](#project-layout)
+- [narrate vs voicebox](#narrate-vs-voicebox)
+- [Roadmap](#roadmap)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Why narrate
+
+Every coding harness reinvents voice. ElevenLabs has a UI, OpenAI has an API, Cartesia has another API, Voicebox has its own MCP server — and each agent (Claude Code, OpenCode, Pi, Cursor, Cline) has its own way of plugging in. The result: shell scripts that hardcode one provider, hooks that break when you change agents, no shared concept of "voice".
+
+`narrate` collapses the matrix:
+
+- **One server**, one set of API keys, one set of voice presets.
+- **Three interfaces**: HTTP for anything, CLI for shells, MCP for agents that speak the protocol.
+- **Six providers** behind a uniform `Provider` interface — including a proxy to [Voicebox](https://github.com/jamiepine/voicebox) for fully local voice cloning.
+- **Voice presets** that abstract over providers (`narrate --voice researcher` works whether `researcher` is OpenAI Nova or Voicebox Morgan).
+- **Drop into any harness**: hook scripts, plugins, MCP — pick whichever your tool supports.
+
+## Providers
 
 | Provider | Type | Auth | Notes |
 |---|---|---|---|
 | **ElevenLabs** | Cloud | `ELEVENLABS_API_KEY` | High quality, premium voices |
 | **OpenAI TTS** | Cloud | `OPENAI_API_KEY` | `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer` |
-| **Google Gemini TTS** | Cloud | `GEMINI_API_KEY` | Multilingual, requires `ffmpeg` |
+| **Google Gemini TTS** | Cloud | `GEMINI_API_KEY` | Multilingual, requires `ffmpeg` for PCM→WAV |
 | **xAI Grok TTS** | Cloud | `XAI_API_KEY` | `eve`, `ara`, `rex`, `sal`, `leo` |
-| **[Voicebox](https://github.com/jamiepine/voicebox)** | Local proxy | none | Auto-detects on `:17493` — voice cloning, 7 local engines |
+| **[Voicebox](https://github.com/jamiepine/voicebox)** | Local proxy | none | Auto-detects on `:17493` — voice cloning, 7 local engines, 23 languages |
 | **System (`say` / `espeak`)** | Local | none | Zero-dep fallback, works offline |
+
+Add any subset. narrate uses what you've configured and reports the rest as `⚪ not configured` in `narrate verify`.
 
 ## Install
 
-Three options, pick one:
+Three options, pick one. All produce the same result: a `narrate` and `narrate-server` binary on your `PATH`.
 
 ### Homebrew (macOS, recommended)
 
 ```bash
 brew tap felores/narrate
 brew install narrate
+brew services start narrate          # auto-start at login
 ```
 
-This installs `narrate` and `narrate-server` into `/opt/homebrew/bin`. Run as a background service with `brew services start narrate`. Bun is pulled in as a dependency automatically.
+Bun is pulled in as a dependency. Tap repo: https://github.com/felores/homebrew-narrate
 
 ### curl install script (macOS / Linux)
 
@@ -42,11 +84,9 @@ curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/install.sh -o 
 bash /tmp/narrate-install.sh
 ```
 
-Clones to `~/.local/share/narrate` and writes wrappers to `~/.local/bin/{narrate,narrate-server}`. Requires [bun](https://bun.sh) (the script will tell you if missing).
+Clones to `~/.local/share/narrate` and writes wrappers to `~/.local/bin/{narrate,narrate-server}`. Requires [bun](https://bun.sh) (the script tells you if missing). Override paths via `NARRATE_DIR`, `BIN_DIR`, `NARRATE_REF`.
 
-Env overrides: `NARRATE_DIR`, `BIN_DIR`, `NARRATE_REF` (branch/tag).
-
-### Manual git clone (for development)
+### Manual git clone (development)
 
 ```bash
 git clone https://github.com/felores/narrate.git ~/Documents/GitHub/narrate
@@ -58,84 +98,76 @@ bun run src/cli.ts verify
 
 ## Configure
 
-```bash
-# API keys (any subset — narrate works with whatever's configured)
-export ELEVENLABS_API_KEY=...
-export OPENAI_API_KEY=sk-...
-export GEMINI_API_KEY=...
-export XAI_API_KEY=...
-# (or put them in ~/.env — narrate auto-loads it)
+API keys live in your environment. narrate auto-loads `~/.env` on startup, so the easiest path is:
 
-# Optional: copy example voice presets
+```bash
+# any subset — narrate picks up whatever's set
+echo 'ELEVENLABS_API_KEY=...' >> ~/.env
+echo 'OPENAI_API_KEY=sk-...'  >> ~/.env
+echo 'GEMINI_API_KEY=...'     >> ~/.env
+echo 'XAI_API_KEY=...'        >> ~/.env
+```
+
+Optional: set defaults and voice presets in XDG config.
+
+```bash
 mkdir -p ~/.config/narrate
-cp $(brew --prefix narrate 2>/dev/null)/libexec/voices.json.example ~/.config/narrate/voices.json \
-  || cp ~/.local/share/narrate/voices.json.example ~/.config/narrate/voices.json
+cp $(brew --prefix narrate)/libexec/voices.json.example ~/.config/narrate/voices.json   # brew
+cp ~/.local/share/narrate/voices.json.example ~/.config/narrate/voices.json             # curl install
+cp ~/Documents/GitHub/narrate/voices.json.example ~/.config/narrate/voices.json         # git clone
+
+cat > ~/.config/narrate/config.json <<EOF
+{
+  "default_provider": "elevenlabs",
+  "default_voice": "researcher",
+  "port": 8888
+}
+EOF
 ```
 
-## Run as a service (auto-start at login)
+`narrate verify` will tell you which providers it sees as configured. See [Configuration precedence](#configuration-precedence) for the full resolution chain.
+
+## Quickstart by interface
+
+narrate exposes three interfaces. Pick whichever your tool supports.
+
+### CLI — `narrate "..."`
+
+Best for shells, hooks, scripts, cron, terminal one-offs.
 
 ```bash
-# Homebrew
-brew services start narrate
-
-# Manual install (curl/git path)
-~/Documents/GitHub/narrate/service/launchd/install.sh   # macOS
-~/Documents/GitHub/narrate/service/systemd/install.sh   # Linux
+narrate "Build complete"
+narrate --voice engineer "Tests passed"
+narrate --provider system --id Samantha "Local fallback"
+echo "Long output" | narrate --quiet
+narrate verify              # doctor-style health snapshot
+narrate verify --test       # also play one sample per configured provider (1 API call each)
 ```
 
-## Verify your installation
+### HTTP — `POST localhost:8888/notify`
+
+Best for plugin code, webhooks, anything that can fetch.
 
 ```bash
-narrate verify
+curl -X POST http://localhost:8888/notify \
+  -H 'Content-Type: application/json' \
+  -H 'X-Narrate-Client-Id: my-app' \
+  -d '{"message":"Build green","voice":"engineer"}'
 ```
 
-```text
-narrate doctor — checking http://localhost:8888
+### MCP — `narrate.speak(...)`
 
-✅ server     healthy on port 8888
-   default   provider=xai voice=ara
-   voices    /Users/you/.config/narrate/voices.json
-   presets   7 (fred, researcher, engineer, ara, kore, morgan_local, samantha)
-
-providers:
-  ✅ elevenlabs
-  ✅ openai
-  ✅ gemini
-  ✅ xai
-  ⚪ voicebox (voicebox not reachable at http://127.0.0.1:17493)
-  ✅ system
-
-(run `narrate verify --test` to play a short sample on each configured provider)
-```
-
-`narrate verify --test` will play one sample per configured provider — useful one-time, but each cloud test costs ~1 API call.
-
-## Use it from any harness
-
-The integration surface is **CLI** (`narrate "..."`) or **HTTP** (`POST localhost:8888/notify`). Both work everywhere. Per-harness recipes:
-
-| Harness | Method | Recipe |
-|---|---|---|
-| **Claude Code** | MCP (recommended) **or** stop hook | [`integrations/claude-code/`](integrations/claude-code/) |
-| **Cursor / Windsurf / Cline** | MCP (recommended) | [`integrations/cursor/`](integrations/cursor/) |
-| **OpenCode** | Plugin (`@opencode-ai/plugin`) | [`integrations/opencode/`](integrations/opencode/) — real plugin contract reference |
-| **Pi (pi-mono)** | `agent.subscribe('turn_end')` | [`integrations/pi/`](integrations/pi/) — `pi-agent-core` event subscription |
-| **ChatGPT Codex CLI** | Wrapper script | [`integrations/codex/`](integrations/codex/) |
-| **Shell scripts / cron / CI** | Direct CLI | [`integrations/shell/`](integrations/shell/) — aliases + helpers |
-
-### MCP — universal one-liner
-
-Any MCP-aware harness gets `narrate.speak`, `narrate.list_voices`, and `narrate.list_providers` for free:
+Best for AI agents with native tool calling. The agent itself decides when to speak.
 
 ```bash
-# Claude Code
+# Claude Code one-liner
 claude mcp add narrate \
   --transport http \
   --url http://localhost:8888/mcp \
   --header "X-Narrate-Client-Id: claude-code"
 ```
 
-Or in `.mcp.json` for Cursor/Windsurf/VS Code/Cline:
+Or via `.mcp.json` in any HTTP MCP client (Cursor, Windsurf, VS Code, Cline):
 
 ```json
 {
@@ -148,51 +180,521 @@ Or in `.mcp.json` for Cursor/Windsurf/VS Code/Cline:
 }
 ```
 
-Coexists with [voicebox's MCP server](https://github.com/jamiepine/voicebox) — they live on different ports (`8888` vs `17493`).
+The agent now sees `narrate.speak`, `narrate.list_voices`, and `narrate.list_providers` as tools.
 
-## HTTP API
+## Use it from each harness
+
+Per-harness recipes live under [`integrations/`](integrations/). Summary:
+
+| Harness | Method | Recipe |
+|---|---|---|
+| **Claude Code** | MCP (recommended) **or** Stop hook | [`integrations/claude-code/`](integrations/claude-code/) |
+| **Cursor / Windsurf / Cline** | MCP | [`integrations/cursor/`](integrations/cursor/) |
+| **OpenCode** | Plugin (`@opencode-ai/plugin`) | [`integrations/opencode/`](integrations/opencode/) |
+| **Pi (pi-mono)** | `agent.subscribe('turn_end')` | [`integrations/pi/`](integrations/pi/) |
+| **ChatGPT Codex CLI** | Wrapper script | [`integrations/codex/`](integrations/codex/) |
+| **Shell scripts / cron / CI** | Direct CLI | [`integrations/shell/`](integrations/shell/) |
+
+## Provider setup detail
+
+### ElevenLabs
+
+1. Sign up at [elevenlabs.io](https://elevenlabs.io) → API Keys → create a key.
+2. `echo 'ELEVENLABS_API_KEY=your_key' >> ~/.env`
+3. Voice IDs: find them at [elevenlabs.io/voice-lab](https://elevenlabs.io/voice-lab) (each voice's URL ends in its ID).
+4. Add to `voices.json`:
+   ```json
+   "rachel": { "provider": "elevenlabs", "voice_id": "21m00Tcm4TlvDq8ikWAM" }
+   ```
+
+### OpenAI TTS
+
+1. Get a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+2. `echo 'OPENAI_API_KEY=sk-...' >> ~/.env`
+3. Six built-in voices (no IDs to look up): `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`.
+4. Optional providerConfig: `{ "model": "tts-1-hd", "speed": 1.2 }` for higher quality / faster speech.
+   ```json
+   "narrator": {
+     "provider": "openai",
+     "voice_id": "fable",
+     "providerConfig": { "model": "tts-1-hd" }
+   }
+   ```
+
+### Google Gemini TTS
+
+1. Get a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+2. `echo 'GEMINI_API_KEY=...' >> ~/.env`
+3. Install `ffmpeg` (Gemini returns raw PCM that we convert to WAV):
+   ```bash
+   brew install ffmpeg                     # macOS
+   sudo apt install ffmpeg                 # Linux
+   ```
+4. Voice names: `Kore`, `Puck`, `Charon`, `Fenrir`, `Aoede` (and others — see [Gemini docs](https://ai.google.dev/gemini-api/docs/speech-generation)).
+
+### xAI Grok TTS
+
+1. Get a key at [console.x.ai](https://console.x.ai).
+2. `echo 'XAI_API_KEY=...' >> ~/.env`
+3. Voice IDs: `eve`, `ara`, `rex`, `sal`, `leo`.
+4. Optional: `XAI_LANGUAGE=auto` (default), `XAI_VOICE_ID=ara` set as default voice.
+
+### Voicebox (local)
+
+See [Voicebox deep dive](#voicebox-deep-dive). TLDR:
 
 ```bash
-# Speak
-curl -X POST http://localhost:8888/notify \
-  -H 'Content-Type: application/json' \
-  -H 'X-Narrate-Client-Id: my-app' \
-  -d '{"message":"Build green","voice":"engineer"}'
-
-# Health snapshot (provider matrix, configured presets, etc.)
-curl http://localhost:8888/health
-
-# All voice presets
-curl http://localhost:8888/voices
-
-# MCP endpoint (Streamable HTTP, JSON-RPC 2.0)
-curl -X POST http://localhost:8888/mcp \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+~/Documents/GitHub/narrate/examples/voicebox-install-macos.sh
+open /Applications/Voicebox.app
+# wait for Kokoro model download via Settings → Engines (or another engine)
+~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh    # creates "Bella" profile
+narrate --provider voicebox --id Bella "Local voice"
 ```
 
-The server logs every request with provider, voice, latency, and client id — tail `~/Documents/GitHub/narrate/logs/narrate.log` (or wherever your service writes) for full observability.
+### System (`say` / `espeak`)
 
-## Voice presets — `voices.json`
+Zero config on macOS — `say` is built in. On Linux, install `espeak-ng`:
 
-Map a friendly name like `researcher` to a `(provider, voice_id, options)` triple so you can swap providers without touching agent code:
+```bash
+sudo apt install espeak-ng     # Debian/Ubuntu
+sudo dnf install espeak-ng     # Fedora
+```
+
+Voice names: any voice your system speaks. On macOS:
+
+```bash
+say -v '?'                      # list all installed voices
+narrate --provider system --id Samantha "macOS Samantha"
+narrate --provider system --id "Daniel" "British Daniel"
+```
+
+## Voicebox deep dive
+
+[Voicebox](https://github.com/jamiepine/voicebox) is a local-first desktop app that runs TTS engines on your GPU. narrate uses it as a provider — your agent calls `narrate.speak`, narrate proxies to voicebox, voicebox plays the audio.
+
+### Install
+
+```bash
+~/Documents/GitHub/narrate/examples/voicebox-install-macos.sh
+```
+
+(Or download manually from [voicebox.sh](https://voicebox.sh) and drag to `/Applications`.)
+
+### Engine vs profile (gotcha)
+
+Voicebox has two concepts:
+
+- **Engine** = the underlying TTS model (Kokoro, Qwen, Chatterbox, TADA, LuxTTS). Each engine ships preset voices.
+- **Profile** = a usable voice instance, either created from a preset or cloned from audio.
+
+`/speak` only accepts profile names — preset voices have to be **promoted to profiles** first. Do it via UI, or with the helper:
+
+```bash
+~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh             # creates "Bella" from kokoro/af_bella
+~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh Adam kokoro am_adam en
+~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh Dora kokoro ef_dora es
+~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh George kokoro bm_george en
+```
+
+### Multi-language behavior
+
+Kokoro voices are flexible: the same profile can speak any of Kokoro's 8 languages depending on what `language` you pass to `/speak`.
+
+- A `kokoro/ef_dora`-backed profile created with `language: "es"` speaks natural Spanish.
+- The same profile asked to speak `language: "en"` speaks English with a Spanish accent.
+- narrate's voicebox provider resolves the profile's `language` automatically (cached 60s) so by default you get the language the profile was created for. Override per-call via `providerConfig.language`.
+
+### Available Kokoro presets at a glance
+
+50 presets total. Some highlights:
+
+| Preset | Name | Language / accent |
+|---|---|---|
+| `af_bella`, `af_nova`, `af_sky`, `af_nicole` | various | en-female (US) |
+| `am_adam`, `am_onyx`, `am_echo` | Adam, Onyx, Echo | en-male (US) |
+| `bf_emma`, `bf_alice` | Emma, Alice | en-female (UK) |
+| `bm_george`, `bm_daniel` | George, Daniel | en-male (UK) |
+| `ef_dora`, `em_alex` | Dora, Alex | es female / male |
+| `ff_siwis` | Siwis | fr female |
+| `hf_alpha`, `hm_omega` | various | hi female / male |
+| `jf_alpha`, `jm_kumo` | various | ja female / male |
+| `zf_xiaoxiao`, others | various | zh female |
+
+Full list: `curl http://127.0.0.1:17493/profiles/presets/kokoro`.
+
+## voices.json — voice presets
+
+Map a friendly name to a `(provider, voice_id, options)` triple so you can swap providers without touching agent code.
+
+### v2 schema (current)
 
 ```json
 {
   "default_voice": "fred",
+  "default_rate": 175,
   "voices": {
-    "researcher": { "provider": "openai",     "voice_id": "nova"     },
-    "engineer":   { "provider": "openai",     "voice_id": "alloy"    },
-    "ara":        { "provider": "xai",        "voice_id": "ara"      },
-    "kore":       { "provider": "gemini",     "voice_id": "Kore"     },
-    "morgan":     { "provider": "voicebox",   "voice_id": "Morgan"   },
-    "samantha":   { "provider": "system",     "voice_id": "Samantha" }
+    "fred":      { "provider": "elevenlabs", "voice_id": "s3TPKV1kjDlVtZbl4Ksh" },
+    "researcher":{ "provider": "openai",     "voice_id": "nova"     },
+    "engineer":  { "provider": "openai",     "voice_id": "alloy"    },
+    "narrator":  { "provider": "openai",     "voice_id": "fable",
+                   "providerConfig": { "model": "tts-1-hd" } },
+    "ara":       { "provider": "xai",        "voice_id": "ara"      },
+    "kore":      { "provider": "gemini",     "voice_id": "Kore"     },
+    "bella":     { "provider": "voicebox",   "voice_id": "Bella"    },
+    "dora":      { "provider": "voicebox",   "voice_id": "Dora"     },
+    "samantha":  { "provider": "system",     "voice_id": "Samantha" }
   }
 }
 ```
 
-Backward-compat: a v1 `voices.json` (no `provider` field, just `voice_name`) is auto-detected and assumed to be `provider: "system"` (matches macOS `say` voice naming).
+Use it with the preset name: `narrate --voice dora "Hola"`.
+
+### v1 backward-compat
+
+If your `voices.json` only has `voice_name` per entry (no `provider` field), narrate auto-assumes `provider: "system"` (the v1 schema was for macOS `say`). You'll see a one-line warning at startup.
+
+### Per-preset providerConfig
+
+Each provider accepts extra options under `providerConfig`:
+
+| Provider | Useful keys |
+|---|---|
+| ElevenLabs | `model_id`, `voice_settings: {stability, similarity_boost, style, use_speaker_boost}` |
+| OpenAI | `model` (`tts-1` / `tts-1-hd`), `speed` (0.25–4.0) |
+| Gemini | `model` |
+| xAI | `language`, `sample_rate`, `bit_rate`, `codec` |
+| Voicebox | `language`, `personality` (boolean), `return_audio` (use `/generate` instead of `/speak`) |
+| System | `rate` |
+
+## CLI reference
+
+```text
+narrate [options] "text to speak"
+narrate verify [--test]
+echo "text" | narrate [options]
+
+Options:
+  -v, --voice NAME      Voice preset from voices.json (e.g. fred, researcher)
+  -i, --id ID           Raw provider voice id (bypasses preset registry)
+  -p, --provider NAME   elevenlabs | openai | gemini | xai | voicebox | system
+  -u, --url URL         Server URL (default http://localhost:8888)
+  -q, --quiet           Suppress output
+  -h, --help            Show help
+
+Subcommands:
+  verify                Health snapshot — server status, provider matrix, voices
+  verify --test         Also play one sample per configured provider (1 API call each)
+
+Env:
+  NARRATE_URL           Override default server URL
+  NARRATE_VOICE         Default preset (fallback for omitted --voice)
+```
+
+## HTTP API reference
+
+### `POST /notify`
+
+Speak text. Returns immediately; audio plays asynchronously.
+
+**Body:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `message` | string | yes | Up to 5000 chars, no control characters |
+| `voice` | string | no | Preset name from voices.json |
+| `voice_id` | string | no | Raw provider voice id (bypasses presets) |
+| `voice_name` | string | no | Legacy alias for `voice_id` |
+| `provider` | string | no | Override default provider |
+| `voice_enabled` | boolean | no (default `true`) | If `false`, returns `{status: "ok", message: "voice_enabled=false; nothing to do"}` |
+| `providerConfig` | object | no | Per-provider passthrough config (see provider table above) |
+
+**Headers:**
+
+| Header | Purpose |
+|---|---|
+| `X-Narrate-Client-Id` | Client identifier (logged + future per-client routing) |
+
+**Response (200):**
+
+```json
+{ "status": "success", "provider": "openai", "voice": "alloy", "format": "mp3", "delegated": false }
+```
+
+`delegated: true` means the provider played the audio itself (voicebox, system) and narrate skipped local playback.
+
+### `POST /pai`
+
+Legacy alias for `/notify` (PAI Voice compatibility).
+
+### `GET /health`
+
+Server + provider snapshot.
+
+```json
+{
+  "status": "healthy",
+  "port": 8888,
+  "default_provider": "xai",
+  "default_voice": "ara",
+  "voices_path": "/Users/you/.config/narrate/voices.json",
+  "voices": ["fred", "researcher", "engineer", ...],
+  "providers": {
+    "elevenlabs": { "configured": true },
+    "openai": { "configured": true },
+    "gemini": { "configured": true },
+    "xai": { "configured": true },
+    "voicebox": { "configured": true },
+    "system": { "configured": true }
+  }
+}
+```
+
+### `GET /voices`
+
+Full voices.json contents.
+
+```json
+{
+  "default_voice": "fred",
+  "default_rate": 175,
+  "voices": { "fred": { ... }, "researcher": { ... } }
+}
+```
+
+### `POST /mcp`
+
+MCP Streamable HTTP endpoint. JSON-RPC 2.0. See [MCP tools reference](#mcp-tools-reference).
+
+## MCP tools reference
+
+Three tools available via the MCP server at `/mcp`:
+
+### `speak`
+
+```typescript
+narrate.speak({
+  text: string,                  // required, max 5000
+  voice?: string,                // preset name from voices.json
+  voice_id?: string,             // raw provider voice id
+  provider?: "elevenlabs" | "openai" | "gemini" | "xai" | "voicebox" | "system"
+}) -> "Spoken via <provider> (voice=<voice>, format=<fmt>, delegated playback)"
+```
+
+### `list_voices`
+
+```typescript
+narrate.list_voices() -> Array<{ name, provider, voice_id, description }>
+```
+
+Returns all voice presets from voices.json.
+
+### `list_providers`
+
+```typescript
+narrate.list_providers() -> Array<{ name, label, configured, reason? }>
+```
+
+Returns the provider health matrix — same data as `GET /health`'s `providers` field.
+
+### Discover via JSON-RPC
+
+```bash
+# tools/list
+curl -X POST http://localhost:8888/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+
+# tools/call
+curl -X POST http://localhost:8888/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"speak","arguments":{"text":"Hello","voice":"researcher"}}}'
+```
+
+## Configuration precedence
+
+Higher rows win. narrate reads each layer at startup; mid-flight changes need a server restart.
+
+| # | Layer | Used for |
+|---|---|---|
+| 1 | CLI flags / POST body / MCP tool args | per-call provider, voice, providerConfig |
+| 2 | `~/.config/narrate/config.json` | default_provider, default_voice, port, voices_path |
+| 3 | `NARRATE_*` env vars | `NARRATE_PORT`, `NARRATE_PROVIDER`, `NARRATE_VOICE`, `NARRATE_VOICES_PATH`, `NARRATE_URL` (CLI only) |
+| 4 | `~/.claude/settings.json` (legacy compat) | `TTS_PROVIDER` and `DA_VOICE_ID`/`NARRATE_VOICE_ID` are read for backward-compat |
+| 5 | `~/.env` | API keys (`ELEVENLABS_API_KEY`, etc.) auto-loaded if present |
+| 6 | Built-in defaults | `port: 8888`, `default_provider: "elevenlabs"`, `default_rate: 175` |
+
+API keys come from `process.env` (loaded from your shell or auto-loaded from `~/.env`). Never put them in `config.json` or `voices.json`.
+
+## Run as a service
+
+### macOS (launchd)
+
+```bash
+brew services start narrate                                   # if installed via Homebrew
+~/Documents/GitHub/narrate/service/launchd/install.sh         # if installed via curl/git
+```
+
+The installer:
+1. Renders `com.narrate.server.plist` from a template (`$HOME` substituted at install time).
+2. Drops it at `~/Library/LaunchAgents/`.
+3. Loads it with `launchctl`.
+4. Verifies it's running.
+
+To remove:
+
+```bash
+brew services stop narrate
+~/Documents/GitHub/narrate/service/launchd/uninstall.sh
+```
+
+### Linux (systemd)
+
+```bash
+~/.local/share/narrate/service/systemd/install.sh
+```
+
+Installs as a user service (`~/.config/systemd/user/narrate.service`) and runs `systemctl --user enable --now`.
+
+To remove:
+
+```bash
+~/.local/share/narrate/service/systemd/uninstall.sh
+```
+
+## Logging and observability
+
+### Live logs
+
+| File | What |
+|---|---|
+| `logs/narrate.log` | All requests, with timestamp, provider, voice, latency, client id |
+| `logs/narrate-error.log` | Errors |
+| `logs/launchd-stdout.log` | Pre-init startup output (small, only grows on crashes) |
+| `logs/launchd-stderr.log` | Same for stderr |
+
+```bash
+# follow live request log
+tail -f ~/Documents/GitHub/narrate/logs/narrate.log
+
+# example line
+2026-04-27T23:44:36.733Z [/notify] → provider=voicebox voice=Dora bytes=42 from=localhost client=- ua=Bun/1.2.10
+2026-04-27T23:44:36.755Z [/notify] ✅ 25ms provider=voicebox voice=Dora format=mp3 delegated=true
+```
+
+### Log rotation
+
+In-process rotation. Defaults: 10 MiB per file, keep last 5 (`narrate.log` → `narrate.log.1` → ... → `narrate.log.5`).
+
+```bash
+# tune via env (read once at server start)
+NARRATE_LOG_MAX_BYTES=20971520 NARRATE_LOG_KEEP=10 narrate-server
+
+# disable entirely (use raw stdout/stderr — useful for `bun run` dev mode)
+NARRATE_LOG_DISABLED=1 narrate-server
+```
+
+### `narrate verify` doctor
+
+```bash
+narrate verify
+narrate verify --test    # also play 1 sample per configured provider
+```
+
+Prints server health, default provider/voice, voices file path, preset list, and per-provider configured/reason status.
+
+## Architecture
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│                      narrate (Bun process)                 │
+│                                                            │
+│   HTTP server (port 8888)                                  │
+│   ├─ POST /notify    POST /pai (legacy)                    │
+│   ├─ GET  /health    GET  /voices                          │
+│   └─ POST /mcp       (MCP Streamable HTTP)                 │
+│                                                            │
+│            │                                               │
+│            ▼                                               │
+│   handleNotify()                                           │
+│            │                                               │
+│            ▼                                               │
+│   Provider registry  (ALL_PROVIDERS)                       │
+│   ┌──────────────┬──────────────┬────────────┐             │
+│   │ ElevenLabs   │ OpenAI       │ Gemini     │  cloud      │
+│   ├──────────────┼──────────────┼────────────┤             │
+│   │ xAI          │ Voicebox     │ System     │  cloud/local│
+│   └──────────────┴──────────────┴────────────┘             │
+│            │                                               │
+│            ▼                                               │
+│   ArrayBuffer  (or delegated=true)                         │
+│            │                                               │
+│            ▼                                               │
+│   playback.ts → afplay (macOS) / ffplay (Linux)            │
+└────────────────────────────────────────────────────────────┘
+```
+
+Each `Provider` (in `src/providers/`) implements a small interface:
+
+```typescript
+interface Provider {
+  name: string;
+  label: string;
+  health(): Promise<ProviderHealth>;
+  generateSpeech(text: string, voice: string, opts?: ProviderOptions): Promise<AudioResult>;
+  listVoices?(): Promise<VoiceInfo[]>;
+}
+```
+
+Provider implementations talk to their respective APIs (or local services like voicebox `:17493`). The result is either an `ArrayBuffer` (cloud — narrate plays it locally via `playback.ts`) or `delegated: true` (voicebox, system — they handled playback themselves).
+
+The MCP server is a thin wrapper: it registers `narrate.speak`, `narrate.list_voices`, `narrate.list_providers` as tools, and the `speak` tool calls the same `handleNotify` function as the HTTP handler. One code path, three interfaces.
+
+## Project layout
+
+```text
+narrate/
+├── src/
+│   ├── providers/
+│   │   ├── base.ts              # Provider interface, types
+│   │   ├── elevenlabs.ts
+│   │   ├── openai.ts
+│   │   ├── gemini.ts
+│   │   ├── xai.ts
+│   │   ├── voicebox.ts
+│   │   ├── system.ts
+│   │   └── index.ts             # registry
+│   ├── voices.ts                # voices.json loader (v1 → v2 compat)
+│   ├── config.ts                # XDG config + env vars + ~/.claude/settings.json shim
+│   ├── playback.ts              # afplay / ffplay
+│   ├── logger.ts                # rotating file logger
+│   ├── mcp.ts                   # MCP server (Streamable HTTP)
+│   ├── server.ts                # HTTP server
+│   └── cli.ts                   # narrate CLI
+├── integrations/                # one folder per harness with real refs
+│   ├── claude-code/
+│   ├── opencode/
+│   ├── pi/
+│   ├── codex/
+│   ├── cursor/
+│   └── shell/
+├── service/
+│   ├── launchd/                 # macOS install + plist template
+│   └── systemd/                 # Linux install + unit template
+├── examples/
+│   ├── config.example.json
+│   ├── voicebox-install-macos.sh
+│   └── voicebox-create-profile.sh
+├── voices.json.example
+├── install.sh                   # curl install entry point
+├── package.json
+├── tsconfig.json
+├── README.md
+├── CHANGELOG.md
+├── LICENSE
+└── .github/workflows/           # CI (TBD)
+```
 
 ## narrate vs voicebox
 
@@ -202,71 +704,99 @@ Backward-compat: a v1 `voices.json` (no `provider` field, just `voice_name`) is 
 
 | | narrate | voicebox |
 |---|---|---|
-| Form factor | CLI + HTTP server | Desktop app (Tauri) |
-| Engines | Cloud + local proxy + system | 7 local engines (MLX/CUDA) |
+| Form factor | CLI + HTTP server + MCP | Desktop app (Tauri) |
+| Engines | Cloud + voicebox proxy + system | 7 local engines (MLX/CUDA) |
 | Voice cloning | No (uses provider voices) | Yes (zero-shot) |
 | Dictation (STT) | No | Yes (Whisper hotkey) |
-| MCP server | Yes (`/mcp`, v0.3+) | Yes (built-in `/mcp` on :17493) |
-| Footprint | < 1 MB | GB of models |
-| Best for | Drop into any agent harness or script | Privacy-first studio workflows |
+| MCP server | Yes (`/mcp`) | Yes (`/mcp` on :17493) |
+| Footprint | < 1 MB + bun | GB of models |
+| Best for | Drop into any agent or shell | Privacy-first studio workflows |
 
-Use **narrate** when you want one command that any harness or shell can call. Use **voicebox** when you want fully local, GPU-accelerated voice. Use **both** when you want to mix cloud and local providers behind a single CLI.
+Use **narrate** when you want one command that any harness or shell can call, mixing cloud and local providers. Use **voicebox** when you want fully local, GPU-accelerated voice. Use **both** when you want voicebox's quality plus narrate's harness-agnostic gateway.
 
-### Install voicebox to use as a local provider
+## Roadmap
 
-```bash
-./examples/voicebox-install-macos.sh
-# Launch Voicebox.app, let it download a TTS model
-narrate verify   # voicebox row should flip from ⚪ to ✅
+| Status | Item |
+|---|---|
+| ✅ v0.1.0 | 6 providers, CLI, HTTP server, voices.json v2, launchd + systemd |
+| ✅ v0.2.0 | Per-request observability, `narrate verify`, real OpenCode + Pi integrations, voicebox install helper |
+| ✅ v0.3.0 | MCP server (`/mcp`), curl install script, Homebrew tap, voicebox profile helper, multi-language fix |
+| ✅ v0.3.1 | In-process log rotation |
+| Planned v0.4 | Pre-built single-binary releases (`bun build --compile` per platform) |
+| Planned v0.5 | More providers (Cartesia, Hume EVI, Azure TTS) |
+| Planned v0.6 | `--direct` CLI mode (skip server, call providers directly) |
+| Planned v0.7 | Streaming TTS over WebSocket |
+| Planned v0.8 | Auth tokens for `/notify` and `/mcp` (currently localhost-only) |
+| Planned v1.0 | Test suite, GitHub Actions CI, npm publish |
+
+## Troubleshooting
+
+### `narrate verify` says provider X is `⚪ not configured`
+
+- Cloud provider: API key env var not set. `cat ~/.env | grep <PROVIDER>_API_KEY`. Restart the server after adding (`brew services restart narrate` or relaunch LaunchAgent).
+- Voicebox: app not running, or running on a non-default port. Open `/Applications/Voicebox.app`. If on a different port, set `VOICEBOX_URL=http://127.0.0.1:NNNNN`.
+- System on Linux: install `espeak-ng`.
+
+### Server logs show `[xai] 404 Voice 'Samantha' not found`
+
+The default provider is whatever `~/.claude/settings.json` says (or `default_provider` in `config.json`). When you pass `--id Samantha` without `--provider system`, narrate uses the default provider — which doesn't know about Samantha. Either:
+
+- `narrate --provider system --id Samantha "..."` (explicit provider)
+- `narrate --voice samantha "..."` (preset that bundles provider + voice id)
+
+### Voicebox profile speaks the wrong language
+
+Solved in v0.3.0 (`aede995`): voicebox's `/speak` doesn't auto-pull `language` from the profile, it defaults to `"en"`. narrate now resolves and passes profile.language automatically. If still wrong, force it via `providerConfig.language`:
+
+```json
+"dora_es": {
+  "provider": "voicebox", "voice_id": "Dora",
+  "providerConfig": { "language": "es" }
+}
 ```
 
-Then add a voicebox preset to `voices.json` and use `narrate --voice <preset> "..."`.
+### Two `narrate` binaries on PATH
 
-## Configuration precedence
+If you both `brew install narrate` AND ran the curl install, you have `/opt/homebrew/bin/narrate` and `~/.local/bin/narrate`. Both work; PATH order decides which wins. Pick one and remove the other.
 
-1. CLI flags (`--provider`, `--voice`, `--id`)
-2. POST body (`provider`, `voice`, `voice_id`)
-3. `~/.config/narrate/config.json`
-4. `NARRATE_*` env vars (`NARRATE_PROVIDER`, `NARRATE_VOICE`, `NARRATE_PORT`, `NARRATE_URL`)
-5. `~/.claude/settings.json` (legacy compat shim — read but never written)
-6. Built-in defaults
+### Logs are massive
 
-API keys are always loaded from environment (`ELEVENLABS_API_KEY`, etc.) or `~/.env`. Never put them in `config.json` or `voices.json`.
-
-## Development
+Tune rotation:
 
 ```bash
+# in your shell init or LaunchAgent EnvironmentVariables
+NARRATE_LOG_MAX_BYTES=2097152    # 2 MiB
+NARRATE_LOG_KEEP=3
+```
+
+Or disable entirely:
+
+```bash
+NARRATE_LOG_DISABLED=1
+```
+
+### "Stateless transport cannot be reused" on `/mcp`
+
+Already fixed in v0.3.0 (`a5aaa14`). If you see this, your local install is pre-fix — pull `main` and reload.
+
+## Contributing
+
+```bash
+git clone https://github.com/felores/narrate.git
+cd narrate
 bun install
-bun run --watch src/server.ts
-./node_modules/.bin/tsc --noEmit   # typecheck
+bun run --watch src/server.ts                      # hot-reload dev mode
+./node_modules/.bin/tsc --noEmit                   # typecheck
 ```
 
-Project layout:
+To add a new TTS provider:
 
-```text
-narrate/
-├── src/
-│   ├── providers/    # one file per provider, all implement Provider interface
-│   ├── voices.ts     # voices.json loader (v1 → v2 compat)
-│   ├── config.ts     # XDG config + env vars
-│   ├── playback.ts   # afplay / ffplay
-│   ├── server.ts     # HTTP server (Bun)
-│   └── cli.ts        # narrate CLI
-├── integrations/     # one folder per harness with real refs
-├── service/          # launchd + systemd installers (templates)
-├── examples/         # config example + voicebox installer
-└── voices.json.example
-```
+1. Create `src/providers/<name>.ts` implementing the `Provider` interface from `src/providers/base.ts`.
+2. Register it in `src/providers/index.ts`.
+3. Add an integration test in `narrate verify --test` (the `sampleVoiceFor` map).
+4. Document it in this README's [Provider setup detail](#provider-setup-detail).
 
-## Status
-
-**v0.3.0** — MCP server at `/mcp` (tools: `speak`, `list_voices`, `list_providers`). Universal harness adapter: any MCP-aware client integrates with one config block.
-
-**v0.2.0** — per-request observability, `narrate verify` doctor, real OpenCode/Pi integrations, voicebox install helper.
-
-**v0.1.0** — initial release: 6 providers, CLI, HTTP server, voices.json v2 schema, launchd + systemd, 5 harness integrations.
-
-See [CHANGELOG.md](CHANGELOG.md).
+PRs welcome. Issues: https://github.com/felores/narrate/issues
 
 ## License
 
