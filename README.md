@@ -752,6 +752,7 @@ Use **narrate** when you want one command that any harness or shell can call, mi
 | ✅ v0.3.1 | In-process log rotation |
 | ✅ v0.3.2 | Voicebox `instruct` passthrough (Qwen natural-language delivery) |
 | ✅ v0.3.3 | CLI `--language` and `--instruct` flags |
+| ✅ v0.3.4 | SwiftBar / xbar menubar plugin |
 | Planned v0.4 | Pre-built single-binary releases (`bun build --compile` per platform) |
 | Planned v0.5 | More providers (Cartesia, Hume EVI, Azure TTS) |
 | Planned v0.6 | `--direct` CLI mode (skip server, call providers directly) |

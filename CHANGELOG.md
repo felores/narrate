@@ -1,4 +1,14 @@
 # Changelog
+## v0.3.4 — 2026-04-27
+
+### Added
+- **SwiftBar / xbar plugin** at `integrations/menubar/narrate.5s.sh`. Shows a 🎙️ icon when narrate is healthy, 🔇 when down. Click to see the provider matrix (6 providers with `✅`/`⚪`), quick-speak shortcuts for the first 8 voice presets (one click → POSTs to `/notify` and that voice speaks), the last 3 lines of `narrate.log`, and service controls (Restart / Stop the LaunchAgent, open log in Console). Works as a SwiftBar plugin or any xbar-compatible runner.
+- `integrations/menubar/install.sh` — symlinks the plugin into `~/Library/Application Support/SwiftBar/Plugins/`, removes the legacy `voice-server.5s.sh` if present, and launches SwiftBar if it isn't already running.
+- `integrations/menubar/README.md` — install + customize.
+
+### Notes
+- The legacy `voice-server.5s.sh` plugin (from the old `~/.claude/voice-server/` setup) referenced scripts that no longer exist after the migration to narrate. The installer auto-removes it.
+
 ## v0.3.3 — 2026-04-27
 
 ### Added
