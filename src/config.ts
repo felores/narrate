@@ -23,7 +23,11 @@ export interface NarrateConfig {
 
 export const DEFAULTS: NarrateConfig = {
   port: 8888,
-  default_provider: "elevenlabs",
+  // "system" is the only provider that's always available out of the box
+  // (macOS `say` / Linux `espeak-ng`). First-run with zero config still works.
+  // Set default_provider in ~/.config/narrate/config.json or NARRATE_PROVIDER
+  // to switch.
+  default_provider: "system",
   default_voice: null,
   default_rate: 175,
   voices_path: null,

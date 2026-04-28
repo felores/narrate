@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.6 — 2026-04-28
+
+### Fixed
+- **First-run UX**: default provider is now `system` (macOS `say` / Linux `espeak-ng`) instead of `elevenlabs`. Fresh installs work end-to-end without any API keys — `narrate "hello"` produces audio immediately. Users with an existing `config.json` or `NARRATE_PROVIDER` env override are unaffected.
+- **README rewritten for non-technical users**:
+  - Top of README is now a 60-second 3-command quickstart (`brew install` → `brew services start` → `narrate "hello"`) using the zero-config system voice. No API keys, no signup.
+  - New "Add an API key" section right after quickstart with a provider/cost table and copy-paste config snippets — replaces the dense Configure section as the primary path.
+  - "Why narrate" demoted below the quickstart (people who got here already know why).
+  - Long flat TOC collapsed under `<details>` so it doesn't push the install path below the fold.
+  - Install section reordered: Homebrew first (one command), curl install second (with a clear callout that bun is a prerequisite), git clone last (development only).
+  - Configure section trimmed: leads with "you can skip this" and focuses on voice presets / custom defaults — API keys are now covered earlier.
+
 ## v0.3.5 — 2026-04-28
 
 ### Added

@@ -1,27 +1,36 @@
 # narrate
 
-> Provider-agnostic TTS gateway and CLI for AI coding harnesses.
+> Make your AI agents and scripts speak. One command, six TTS providers, zero lock-in.
 
-`narrate` is a single small process — a Bun HTTP server with an MCP endpoint and a CLI — that lets **any** AI coding harness (Claude Code, OpenCode, Pi, Cursor, Windsurf, Cline, ChatGPT Codex) and any shell script speak through any TTS provider. Six providers ship in v0.3, cloud and local. One config, one server, every voice.
+## 60-second quickstart (macOS)
+
+Hear narrate speak in three commands — no API keys, no signup:
 
 ```bash
-narrate "Deploy complete"                          # speak via the default voice
-narrate --voice researcher "Findings ready"        # named preset from voices.json
-narrate --provider voicebox --id Bella "Local"     # local model (voicebox)
-narrate verify                                     # health snapshot
+brew install felores/narrate/narrate
+brew services start narrate
+narrate "Hello, narrate"
 ```
+
+That's it. Uses your built-in macOS voice. Want studio-quality voices? Add an [API key](#add-an-api-key) — it's optional.
+
+> **Linux?** `curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/install.sh | bash`, then `sudo apt install espeak-ng`, then `narrate-server &` and `narrate "hello"`.
 
 ---
 
+<details>
+<summary><strong>Table of contents</strong></summary>
+
 - [Why narrate](#why-narrate)
+- [Add an API key](#add-an-api-key) — for premium voices
+- [Use it from your AI tool](#use-it-from-each-harness) — Claude Code, Cursor, OpenCode, etc.
 - [Providers](#providers)
-- [Install](#install)
+- [Install](#install) — other methods
 - [Where things live](#where-things-live)
 - [Configure](#configure)
 - [Quickstart by interface](#quickstart-by-interface)
-- [Use it from each harness](#use-it-from-each-harness)
 - [Provider setup detail](#provider-setup-detail)
-- [Voicebox deep dive](#voicebox-deep-dive)
+- [Voicebox deep dive](#voicebox-deep-dive) — local voice cloning
 - [voices.json — voice presets](#voicesjson--voice-presets)
 - [CLI reference](#cli-reference)
 - [HTTP API reference](#http-api-reference)
@@ -36,6 +45,38 @@ narrate verify                                     # health snapshot
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
+
+</details>
+
+---
+
+## Add an API key
+
+Optional. The default macOS voice works fine for notifications, but premium providers sound dramatically better. Pick one (or several):
+
+| Provider | Where to get the key | Cost |
+|---|---|---|
+| ElevenLabs | [elevenlabs.io](https://elevenlabs.io) | free tier, premium voices |
+| OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | pay-per-use, very cheap |
+| Google Gemini | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | free tier |
+| xAI | [console.x.ai](https://console.x.ai) | pay-per-use |
+
+Then add the key(s) to `~/.env` and switch the default provider:
+
+```bash
+echo 'OPENAI_API_KEY=sk-...' >> ~/.env       # any subset works
+echo 'ELEVENLABS_API_KEY=...' >> ~/.env
+
+mkdir -p ~/.config/narrate
+echo '{"default_provider":"openai","default_voice":"nova"}' > ~/.config/narrate/config.json
+
+brew services restart narrate
+narrate "Now I sound much better"
+```
+
+`narrate verify` shows you which providers are configured. See [Provider setup detail](#provider-setup-detail) for per-provider voice IDs.
+
+> **Why `~/.env`, not `~/.zshrc`?** Background services (`brew services`, LaunchAgent, systemd) don't run shell init. `~/.env` is the only path that works for both CLI and the server-as-service.
 
 ---
 
@@ -66,28 +107,29 @@ Add any subset. narrate uses what you've configured and reports the rest as `⚪
 
 ## Install
 
-Three options, pick one. All produce the same result: a `narrate` and `narrate-server` binary on your `PATH`.
-
-### Homebrew (macOS, recommended)
+### macOS — Homebrew (recommended, one command)
 
 ```bash
-brew tap felores/narrate
-brew install narrate
+brew install felores/narrate/narrate
 brew services start narrate          # auto-start at login
 ```
 
-Bun is pulled in as a dependency. Tap repo: https://github.com/felores/homebrew-narrate
+That's everything. Bun is pulled in as a dependency. After this you can run `narrate "hello"` and you'll hear it.
 
-### curl install script (macOS / Linux)
+### Linux / macOS — curl install
+
+Requires [bun](https://bun.sh) first (`curl -fsSL https://bun.sh/install | bash`).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/install.sh -o /tmp/narrate-install.sh
 bash /tmp/narrate-install.sh
+"$HOME/.local/share/narrate/service/launchd/install.sh"   # macOS
+"$HOME/.local/share/narrate/service/systemd/install.sh"   # Linux
 ```
 
-Clones to `~/.local/share/narrate` and writes wrappers to `~/.local/bin/{narrate,narrate-server}`. Requires [bun](https://bun.sh) (the script tells you if missing). Override paths via `NARRATE_DIR`, `BIN_DIR`, `NARRATE_REF`.
+Clones to `~/.local/share/narrate`, writes wrappers to `~/.local/bin/{narrate,narrate-server}`, then installs the auto-start service. Override paths via `NARRATE_DIR`, `BIN_DIR`, `NARRATE_REF`.
 
-### Manual git clone (development)
+### Development — git clone
 
 ```bash
 git clone https://github.com/felores/narrate.git ~/Documents/GitHub/narrate
@@ -120,34 +162,34 @@ The running server reports its own location at `GET /health` (`repo_dir`, `logs_
 
 ## Configure
 
-### API keys — `~/.env`, not your shell init
+You can skip this entirely if the [Add an API key](#add-an-api-key) section above covered your needs. This section is for **named voice presets** and **per-provider tweaks**.
 
-API keys live in `process.env`. narrate auto-loads `~/.env` on startup. **Do not** put them only in `~/.zshrc`/`.bashrc` if you want the LaunchAgent / systemd unit to see them — services don't run shell init. `~/.env` is the only path that works for all three (CLI, server-as-service, hooks).
+### Voice presets (`voices.json`)
 
-```bash
-# any subset — narrate picks up whatever's set
-echo 'ELEVENLABS_API_KEY=...' >> ~/.env
-echo 'OPENAI_API_KEY=sk-...'  >> ~/.env
-echo 'GEMINI_API_KEY=...'     >> ~/.env
-echo 'XAI_API_KEY=...'        >> ~/.env
-```
-
-### Optional: presets and defaults
+Map a friendly name to a `(provider, voice_id)` triple so you can swap providers without touching agent code:
 
 ```bash
 mkdir -p ~/.config/narrate
 cp "$NARRATE_DIR/voices.json.example" ~/.config/narrate/voices.json
+narrate --voice researcher "Findings ready"   # uses the preset from voices.json
+```
 
+Edit `~/.config/narrate/voices.json` to add your own presets. Full schema in [voices.json — voice presets](#voicesjson--voice-presets).
+
+### Custom defaults (`config.json`)
+
+```bash
 cat > ~/.config/narrate/config.json <<EOF
 {
-  "default_provider": "elevenlabs",
+  "default_provider": "openai",
   "default_voice": "researcher",
   "port": 8888
 }
 EOF
+brew services restart narrate
 ```
 
-`narrate verify` will tell you which providers it sees as configured. See [Configuration precedence](#configuration-precedence) for the full resolution chain.
+See [Configuration precedence](#configuration-precedence) for the full resolution chain.
 
 ## Quickstart by interface
 
@@ -780,6 +822,7 @@ Use **narrate** when you want one command that any harness or shell can call, mi
 | ✅ v0.3.3 | CLI `--language` and `--instruct` flags |
 | ✅ v0.3.4 | SwiftBar / xbar menubar plugin |
 | ✅ v0.3.5 | Portability fixes — `/health` exposes `repo_dir`/`logs_dir`, plugin auto-locates, SwiftBar Login Items autostart, plist drops `$PATH` snapshot |
+| ✅ v0.3.6 | First-run UX: default provider is `system` so fresh installs work without API keys. README rewritten for non-technical users with a 3-command quickstart at the top. |
 | Planned v0.4 | Pre-built single-binary releases (`bun build --compile` per platform) |
 | Planned v0.5 | More providers (Cartesia, Hume EVI, Azure TTS) |
 | Planned v0.6 | `--direct` CLI mode (skip server, call providers directly) |
