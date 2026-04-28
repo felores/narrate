@@ -1,4 +1,18 @@
 # Changelog
+
+## v0.3.5 — 2026-04-28
+
+### Added
+- **`/health` exposes `repo_dir` and `logs_dir`** so plugins and tooling can self-locate the running install instead of guessing paths. The SwiftBar plugin now uses this — works regardless of install method (Homebrew, curl, git clone) without env overrides.
+- **SwiftBar Login Items auto-registration**: `integrations/menubar/install.sh` now adds SwiftBar to macOS Login Items so the menu icon survives reboot. Pass `--no-autostart` to skip. Idempotent.
+
+### Fixed
+- **Plist no longer snapshots install-time `$PATH`**. The previous `s|__PATH_VALUE__|$PATH|g` substitution captured whatever PATH the user happened to have at install time, including dirs that might not exist later. The new template bakes a static, sensible PATH (`<bun_dir>:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`).
+- **README portability**: replaced hardcoded `~/Documents/GitHub/narrate/...` paths with `$NARRATE_DIR` everywhere, plus a new "Where things live" section documenting the canonical install path per method.
+- **README env var clarity**: explicit note that API keys must live in `~/.env` (not `.zshrc`/`.bashrc`) when running narrate as a service. LaunchAgents and systemd units don't read shell init.
+- **menubar/README** corrected: `install.sh` copies the plugin (not symlinks it). The doc claimed symlink but the actual installer was changed to `cp` to fix `BASH_SOURCE` resolution.
+- **SwiftBar plugin self-locates** via `/health` + fallback chain (`~/.local/share/narrate`, `~/Documents/GitHub/narrate`, `$(brew --prefix narrate)/libexec`). No more broken defaults for non-git-clone users.
+
 ## v0.3.4 — 2026-04-27
 
 ### Added
@@ -43,7 +57,6 @@
 
 ### Notes
 - Existing service users must rerun `service/launchd/install.sh` (or systemd equivalent) to pick up the new log paths.
-
 
 ## v0.3.0 — 2026-04-27
 

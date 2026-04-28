@@ -66,6 +66,21 @@ else
     open "swiftbar://refreshallplugins" >/dev/null 2>&1 || true
 fi
 
+# Add SwiftBar to macOS Login Items so the menu icon comes back after reboot.
+# Idempotent: skip if already registered. Skipped if --no-autostart passed.
+if [[ " $* " != *" --no-autostart "* ]]; then
+    if osascript -e 'tell application "System Events" to get the name of every login item' 2>/dev/null \
+        | tr ',' '\n' | grep -qiE '(^| )SwiftBar( |$)'; then
+        echo "→ SwiftBar already in Login Items"
+    else
+        echo "→ Adding SwiftBar to Login Items (auto-start at boot)"
+        osascript -e 'tell application "System Events" to make login item at end with properties {path:"/Applications/SwiftBar.app", hidden:false}' \
+            >/dev/null 2>&1 \
+            && echo "${GREEN}  ✓ added${NC}" \
+            || echo "${YELLOW}  ⚠ could not add (System Events permissions?)${NC}"
+    fi
+fi
+
 cat <<EOF
 
 Next:

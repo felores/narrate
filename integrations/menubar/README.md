@@ -16,26 +16,28 @@ A macOS menu bar indicator for the narrate TTS gateway. Shows server status, the
 ## Install
 
 ```bash
-./install.sh
+./install.sh                  # default: also adds SwiftBar to Login Items
+./install.sh --no-autostart   # skip the Login Items step
 ```
 
 This:
 
 1. Removes the legacy `voice-server.5s.sh` plugin if it's there (it points at scripts that no longer exist after the migration to narrate).
-2. Symlinks `narrate.5s.sh` into `$HOME/Library/Application Support/SwiftBar/Plugins/` so future updates from the repo are picked up automatically.
-3. Launches SwiftBar if it isn't already running.
+2. **Copies** `narrate.5s.sh` into `$HOME/Library/Application Support/SwiftBar/Plugins/`. (A real file, not a symlink — SwiftBar resolves `BASH_SOURCE` relative to the plugin location, and the helper script needs to be referenced by absolute path from the repo. Re-run `install.sh` to pick up upstream changes.)
+3. Adds SwiftBar to macOS Login Items so the menu icon survives reboot, unless `--no-autostart` is passed.
+4. Launches SwiftBar (or asks it to reload plugins via the `swiftbar://refreshallplugins` URL scheme if already running).
 
 After install, click the SwiftBar icon → **Refresh All** if your menu bar doesn't show 🎙️ within 5 seconds.
 
 ## Manual install
-
-If you don't want a symlink:
 
 ```bash
 cp narrate.5s.sh "$HOME/Library/Application Support/SwiftBar/Plugins/"
 chmod +x "$HOME/Library/Application Support/SwiftBar/Plugins/narrate.5s.sh"
 open -a SwiftBar
 ```
+
+To make SwiftBar auto-start at boot manually: System Settings → General → Login Items, click `+`, pick `/Applications/SwiftBar.app`.
 
 ## Override defaults
 

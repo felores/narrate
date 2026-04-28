@@ -16,6 +16,11 @@ PLIST_NAME="com.narrate.server.plist"
 PLIST_TEMPLATE="$SCRIPT_DIR/$PLIST_NAME.template"
 PLIST_DEST="$HOME/Library/LaunchAgents/$PLIST_NAME"
 
+# Bake a STATIC PATH into the plist instead of snapshotting the install-time
+# shell PATH. The server only needs: bun, ffmpeg (gemini), system binaries.
+# A snapshot of $PATH ages poorly — it captures dirs that may not exist later.
+PATH_VALUE="$(dirname "$BUN_PATH"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+
 # ─── Pre-flight ─────────────────────────────────────────────────────────────
 if [ -z "$BUN_PATH" ]; then
     echo "❌ bun not found in PATH. Install from https://bun.sh" >&2
@@ -42,7 +47,7 @@ sed \
     -e "s|__BUN_PATH__|$BUN_PATH|g" \
     -e "s|__NARRATE_DIR__|$NARRATE_DIR|g" \
     -e "s|__HOME__|$HOME|g" \
-    -e "s|__PATH_VALUE__|$PATH|g" \
+    -e "s|__PATH_VALUE__|$PATH_VALUE|g" \
     "$PLIST_TEMPLATE" > "$PLIST_DEST"
 
 echo "  → wrote $PLIST_DEST"

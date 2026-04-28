@@ -16,6 +16,7 @@ narrate verify                                     # health snapshot
 - [Why narrate](#why-narrate)
 - [Providers](#providers)
 - [Install](#install)
+- [Where things live](#where-things-live)
 - [Configure](#configure)
 - [Quickstart by interface](#quickstart-by-interface)
 - [Use it from each harness](#use-it-from-each-harness)
@@ -96,9 +97,32 @@ bun run src/server.ts &
 bun run src/cli.ts verify
 ```
 
+## Where things live
+
+Once installed, the repo + scripts are at one of these paths depending on the method you used:
+
+| Install method | `$NARRATE_DIR` | Logs |
+|---|---|---|
+| Homebrew | `$(brew --prefix narrate)/libexec` | `$NARRATE_DIR/logs/narrate.log` |
+| curl install | `~/.local/share/narrate` | `$NARRATE_DIR/logs/narrate.log` |
+| git clone (dev) | wherever you cloned (e.g. `~/Documents/GitHub/narrate`) | `$NARRATE_DIR/logs/narrate.log` |
+
+Set it once in your shell init so the recipes below work copy-paste:
+
+```bash
+# pick the line that matches how you installed
+export NARRATE_DIR="$(brew --prefix narrate)/libexec"   # brew
+export NARRATE_DIR="$HOME/.local/share/narrate"         # curl
+export NARRATE_DIR="$HOME/Documents/GitHub/narrate"     # git clone
+```
+
+The running server reports its own location at `GET /health` (`repo_dir`, `logs_dir`) — useful for plugins and tooling that need to self-locate.
+
 ## Configure
 
-API keys live in your environment. narrate auto-loads `~/.env` on startup, so the easiest path is:
+### API keys — `~/.env`, not your shell init
+
+API keys live in `process.env`. narrate auto-loads `~/.env` on startup. **Do not** put them only in `~/.zshrc`/`.bashrc` if you want the LaunchAgent / systemd unit to see them — services don't run shell init. `~/.env` is the only path that works for all three (CLI, server-as-service, hooks).
 
 ```bash
 # any subset — narrate picks up whatever's set
@@ -108,13 +132,11 @@ echo 'GEMINI_API_KEY=...'     >> ~/.env
 echo 'XAI_API_KEY=...'        >> ~/.env
 ```
 
-Optional: set defaults and voice presets in XDG config.
+### Optional: presets and defaults
 
 ```bash
 mkdir -p ~/.config/narrate
-cp $(brew --prefix narrate)/libexec/voices.json.example ~/.config/narrate/voices.json   # brew
-cp ~/.local/share/narrate/voices.json.example ~/.config/narrate/voices.json             # curl install
-cp ~/Documents/GitHub/narrate/voices.json.example ~/.config/narrate/voices.json         # git clone
+cp "$NARRATE_DIR/voices.json.example" ~/.config/narrate/voices.json
 
 cat > ~/.config/narrate/config.json <<EOF
 {
@@ -244,10 +266,10 @@ Per-harness recipes live under [`integrations/`](integrations/). Summary:
 See [Voicebox deep dive](#voicebox-deep-dive). TLDR:
 
 ```bash
-~/Documents/GitHub/narrate/examples/voicebox-install-macos.sh
+"$NARRATE_DIR/examples/voicebox-install-macos.sh"
 open /Applications/Voicebox.app
 # wait for Kokoro model download via Settings → Engines (or another engine)
-~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh    # creates "Bella" profile
+"$NARRATE_DIR/examples/voicebox-create-profile.sh"     # creates "Bella" profile
 narrate --provider voicebox --id Bella "Local voice"
 ```
 
@@ -275,7 +297,7 @@ narrate --provider system --id "Daniel" "British Daniel"
 ### Install
 
 ```bash
-~/Documents/GitHub/narrate/examples/voicebox-install-macos.sh
+"$NARRATE_DIR/examples/voicebox-install-macos.sh"
 ```
 
 (Or download manually from [voicebox.sh](https://voicebox.sh) and drag to `/Applications`.)
@@ -290,10 +312,10 @@ Voicebox has two concepts:
 `/speak` only accepts profile names — preset voices have to be **promoted to profiles** first. Do it via UI, or with the helper:
 
 ```bash
-~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh             # creates "Bella" from kokoro/af_bella
-~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh Adam kokoro am_adam en
-~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh Dora kokoro ef_dora es
-~/Documents/GitHub/narrate/examples/voicebox-create-profile.sh George kokoro bm_george en
+"$NARRATE_DIR/examples/voicebox-create-profile.sh"                          # creates "Bella" from kokoro/af_bella
+"$NARRATE_DIR/examples/voicebox-create-profile.sh" Adam kokoro am_adam en
+"$NARRATE_DIR/examples/voicebox-create-profile.sh" Dora kokoro ef_dora es
+"$NARRATE_DIR/examples/voicebox-create-profile.sh" George kokoro bm_george en
 ```
 
 ### Multi-language behavior
@@ -560,12 +582,12 @@ API keys come from `process.env` (loaded from your shell or auto-loaded from `~/
 ### macOS (launchd)
 
 ```bash
-brew services start narrate                                   # if installed via Homebrew
-~/Documents/GitHub/narrate/service/launchd/install.sh         # if installed via curl/git
+brew services start narrate              # if installed via Homebrew
+"$NARRATE_DIR/service/launchd/install.sh" # if installed via curl/git
 ```
 
 The installer:
-1. Renders `com.narrate.server.plist` from a template (`$HOME` substituted at install time).
+1. Renders `com.narrate.server.plist` from a template (`$HOME` and `$NARRATE_DIR` substituted at install time, with a static `PATH` of `<bun_dir>:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`).
 2. Drops it at `~/Library/LaunchAgents/`.
 3. Loads it with `launchctl`.
 4. Verifies it's running.
@@ -574,13 +596,13 @@ To remove:
 
 ```bash
 brew services stop narrate
-~/Documents/GitHub/narrate/service/launchd/uninstall.sh
+"$NARRATE_DIR/service/launchd/uninstall.sh"
 ```
 
 ### Linux (systemd)
 
 ```bash
-~/.local/share/narrate/service/systemd/install.sh
+"$NARRATE_DIR/service/systemd/install.sh"
 ```
 
 Installs as a user service (`~/.config/systemd/user/narrate.service`) and runs `systemctl --user enable --now`.
@@ -588,7 +610,7 @@ Installs as a user service (`~/.config/systemd/user/narrate.service`) and runs `
 To remove:
 
 ```bash
-~/.local/share/narrate/service/systemd/uninstall.sh
+"$NARRATE_DIR/service/systemd/uninstall.sh"
 ```
 
 ## Logging and observability
@@ -603,8 +625,12 @@ To remove:
 | `logs/launchd-stderr.log` | Same for stderr |
 
 ```bash
-# follow live request log
-tail -f ~/Documents/GitHub/narrate/logs/narrate.log
+# follow live request log (resolve the path via /health if you don't know it)
+LOGS_DIR="$(curl -s localhost:8888/health | python3 -c 'import sys,json;print(json.load(sys.stdin)["logs_dir"])')"
+tail -f "$LOGS_DIR/narrate.log"
+
+# or if you set $NARRATE_DIR per "Where things live":
+tail -f "$NARRATE_DIR/logs/narrate.log"
 
 # example line
 2026-04-27T23:44:36.733Z [/notify] → provider=voicebox voice=Dora bytes=42 from=localhost client=- ua=Bun/1.2.10
@@ -753,6 +779,7 @@ Use **narrate** when you want one command that any harness or shell can call, mi
 | ✅ v0.3.2 | Voicebox `instruct` passthrough (Qwen natural-language delivery) |
 | ✅ v0.3.3 | CLI `--language` and `--instruct` flags |
 | ✅ v0.3.4 | SwiftBar / xbar menubar plugin |
+| ✅ v0.3.5 | Portability fixes — `/health` exposes `repo_dir`/`logs_dir`, plugin auto-locates, SwiftBar Login Items autostart, plist drops `$PATH` snapshot |
 | Planned v0.4 | Pre-built single-binary releases (`bun build --compile` per platform) |
 | Planned v0.5 | More providers (Cartesia, Hume EVI, Azure TTS) |
 | Planned v0.6 | `--direct` CLI mode (skip server, call providers directly) |

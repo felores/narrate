@@ -10,12 +10,43 @@
 export PATH="/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:$PATH"
 
 NARRATE_URL="${NARRATE_URL:-http://localhost:8888}"
-NARRATE_LOG="${NARRATE_LOG:-$HOME/Documents/GitHub/narrate/logs/narrate.log}"
 PLIST="$HOME/Library/LaunchAgents/com.narrate.server.plist"
-REPO_ROOT="${NARRATE_REPO:-$HOME/Documents/GitHub/narrate}"
 
 # ─── Health probe ───────────────────────────────────────────────────────────
 HEALTH=$(curl -s -m 1 "$NARRATE_URL/health" 2>/dev/null)
+
+# Pull repo_dir / logs_dir from /health so the plugin works regardless of
+# install method (brew, curl, git clone). Env vars still win as override.
+extract_json_string() {
+    # $1 = json, $2 = key — minimal extractor, no jq dependency.
+    echo "$1" | python3 -c "import sys,json
+try:
+    print(json.loads(sys.stdin.read()).get('$2',''))
+except Exception:
+    pass" 2>/dev/null
+}
+
+if [ -n "$HEALTH" ]; then
+    SERVER_REPO_DIR="$(extract_json_string "$HEALTH" "repo_dir")"
+    SERVER_LOGS_DIR="$(extract_json_string "$HEALTH" "logs_dir")"
+fi
+
+# Fallback chain: env override → server-reported → common install paths.
+REPO_ROOT="${NARRATE_REPO:-${SERVER_REPO_DIR:-}}"
+if [ -z "$REPO_ROOT" ]; then
+    for candidate in \
+        "$HOME/.local/share/narrate" \
+        "$HOME/Documents/GitHub/narrate" \
+        "$(brew --prefix narrate 2>/dev/null)/libexec"; do
+        if [ -f "$candidate/src/cli.ts" ]; then
+            REPO_ROOT="$candidate"
+            break
+        fi
+    done
+fi
+
+NARRATE_LOG="${NARRATE_LOG:-${SERVER_LOGS_DIR:+$SERVER_LOGS_DIR/narrate.log}}"
+NARRATE_LOG="${NARRATE_LOG:-$REPO_ROOT/logs/narrate.log}"
 
 if [ -z "$HEALTH" ] || ! echo "$HEALTH" | grep -q '"status":"healthy"'; then
     echo "🔇"
