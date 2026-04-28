@@ -298,11 +298,20 @@ Voicebox has two concepts:
 
 ### Multi-language behavior
 
-Kokoro voices are flexible: the same profile can speak any of Kokoro's 8 languages depending on what `language` you pass to `/speak`.
+Kokoro voices are flexible: the same profile can speak any of Kokoro's 8 languages depending on what `language` you pass to `/speak`. Voices are style vectors at the model level — they describe a timbre, not a language. Pointing them at a different language is supported.
 
 - A `kokoro/ef_dora`-backed profile created with `language: "es"` speaks natural Spanish.
-- The same profile asked to speak `language: "en"` speaks English with a Spanish accent.
-- narrate's voicebox provider resolves the profile's `language` automatically (cached 60s) so by default you get the language the profile was created for. Override per-call via `providerConfig.language`.
+- The same Dora profile asked to speak `language: "en"` speaks English with a Spanish accent (her trained timbre + English phonetics).
+- A `kokoro/af_bella`-backed profile (en-trained) asked to speak `language: "es"` speaks Spanish with Bella's American voice timbre but proper Spanish phonetics — this is **the way to make Bella speak Spanish naturally**.
+- narrate's voicebox provider resolves `profile.language` automatically (cached 60s) as the default. Override per-call with `--language es` (CLI), `providerConfig.language: "es"` (POST body or voices.json), or pin a preset:
+
+```json
+"bella_es": {
+  "provider": "voicebox",
+  "voice_id": "Bella",
+  "providerConfig": { "language": "es" }
+}
+```
 
 ### Available Kokoro presets at a glance
 
@@ -363,7 +372,7 @@ Each provider accepts extra options under `providerConfig`:
 | OpenAI | `model` (`tts-1` / `tts-1-hd`), `speed` (0.25–4.0) |
 | Gemini | `model` |
 | xAI | `language`, `sample_rate`, `bit_rate`, `codec` |
-| Voicebox | `language`, `personality` (boolean), `return_audio` (use `/generate` instead of `/speak`) |
+| Voicebox | `language`, `instruct` (Qwen CustomVoice natural-language delivery), `personality` (boolean), `return_audio` (use `/generate` instead of `/speak`) |
 | System | `rate` |
 
 ## CLI reference
@@ -377,6 +386,15 @@ Options:
   -v, --voice NAME      Voice preset from voices.json (e.g. fred, researcher)
   -i, --id ID           Raw provider voice id (bypasses preset registry)
   -p, --provider NAME   elevenlabs | openai | gemini | xai | voicebox | system
+  -l, --language LANG   Force generation language (e.g. es, en, ja, fr).
+                        Useful with cross-language voices: a Kokoro Bella
+                        (en-trained) speaks proper Spanish phonetics with
+                        --language es, since Kokoro is multilingual at the
+                        model level.
+  --instruct TEXT       Natural-language delivery hint (Qwen CustomVoice
+                        only). E.g. "warm conversational tone",
+                        "broadcast news quality", "speak slowly with
+                        emphasis". Other engines ignore this flag.
   -u, --url URL         Server URL (default http://localhost:8888)
   -q, --quiet           Suppress output
   -h, --help            Show help
@@ -388,6 +406,16 @@ Subcommands:
 Env:
   NARRATE_URL           Override default server URL
   NARRATE_VOICE         Default preset (fallback for omitted --voice)
+```
+
+`--language` and `--instruct` forward as `providerConfig.{language,instruct}` and override both preset providerConfig and the voicebox provider's auto-resolved profile defaults.
+
+```bash
+# Bella is en-trained, but Kokoro can aim her at Spanish phonetics:
+narrate --provider voicebox --id Bella --language es "Hola, soy Bella en español"
+
+# Qwen Ryan with delivery direction:
+narrate --provider voicebox --id Ryan --instruct "broadcast news quality" "Headlines tonight"
 ```
 
 ## HTTP API reference
@@ -722,6 +750,8 @@ Use **narrate** when you want one command that any harness or shell can call, mi
 | ✅ v0.2.0 | Per-request observability, `narrate verify`, real OpenCode + Pi integrations, voicebox install helper |
 | ✅ v0.3.0 | MCP server (`/mcp`), curl install script, Homebrew tap, voicebox profile helper, multi-language fix |
 | ✅ v0.3.1 | In-process log rotation |
+| ✅ v0.3.2 | Voicebox `instruct` passthrough (Qwen natural-language delivery) |
+| ✅ v0.3.3 | CLI `--language` and `--instruct` flags |
 | Planned v0.4 | Pre-built single-binary releases (`bun build --compile` per platform) |
 | Planned v0.5 | More providers (Cartesia, Hume EVI, Azure TTS) |
 | Planned v0.6 | `--direct` CLI mode (skip server, call providers directly) |
