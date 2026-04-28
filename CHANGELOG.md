@@ -1,4 +1,15 @@
 # Changelog
+## v0.3.3 — 2026-04-27
+
+### Added
+- **CLI `--language` flag**: forces the generation language regardless of the voice's trained language. Useful with cross-language voices — e.g. `narrate --provider voicebox --id Bella --language es "Hola"` makes Kokoro Bella (en-trained) speak proper Spanish phonetics. Kokoro is multilingual at the model level; voices are just style vectors, so they can be aimed at any of the engine's supported languages with this override.
+- **CLI `--instruct` flag**: passes natural-language delivery hint to Qwen CustomVoice. E.g. `narrate --provider voicebox --id Ryan --instruct "broadcast news quality" "..."`. Other engines ignore this.
+- Both flags forward as `providerConfig.{language,instruct}` to the server, where they win over preset providerConfig and over auto-resolved profile defaults.
+- `voices.json.example` now includes `bella_es` as a working example: same Bella voice, forced Spanish phonetics, no need for a separate Spanish-trained voice.
+
+### Fixed
+- The voicebox provider's auto-resolution of `profile.language` is correct for default behavior (a Spanish-trained Dora speaks Spanish without extra config) but was previously not overridable from the CLI. Adding `--language` closes that gap.
+
 ## v0.3.2 — 2026-04-27
 
 ### Added

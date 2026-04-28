@@ -35,6 +35,12 @@
       "voice_id": "Bella",
       "description": "Kokoro Bella (en-female) — create with examples/voicebox-create-profile.sh"
     },
+    "bella_es": {
+      "provider": "voicebox",
+      "voice_id": "Bella",
+      "description": "Same Bella voice forced into Spanish phonetics (Kokoro is multilingual at model level)",
+      "providerConfig": { "language": "es" }
+    },
     "ryan_calm": {
       "provider": "voicebox",
       "voice_id": "Ryan",

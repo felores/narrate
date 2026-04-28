@@ -17,6 +17,8 @@ interface CliArgs {
   voice?: string;
   voiceId?: string;
   provider?: string;
+  language?: string;
+  instruct?: string;
   serverUrl: string;
   quiet: boolean;
   text: string;
@@ -38,6 +40,14 @@ Options:
   -v, --voice NAME      Voice preset from voices.json (e.g. fred, researcher)
   -i, --id ID           Raw provider voice id (bypasses preset registry)
   -p, --provider NAME   Provider: elevenlabs, openai, gemini, xai, voicebox, system
+  -l, --language LANG   Force generation language (e.g. es, en, ja, fr).
+                        Useful with cross-language voices: a voicebox Kokoro
+                        Bella (en-trained) speaks proper Spanish phonetics
+                        with --language es.
+  --instruct TEXT       Natural-language delivery hint (Qwen CustomVoice
+                        only). E.g. "warm conversational tone",
+                        "broadcast news quality", "speak slowly with
+                        emphasis". Other engines ignore this.
   -u, --url URL         Server URL (default http://localhost:${config.port})
   -q, --quiet           Suppress output
   -h, --help            Show this help
@@ -50,7 +60,8 @@ Examples:
   narrate "Deploy complete"
   narrate --voice researcher "Findings ready"
   narrate --provider system --id Samantha "Local fallback"
-  narrate --provider voicebox --voice Morgan "Local cloned voice"
+  narrate --provider voicebox --id Bella --language es "Hola, soy Bella en español"
+  narrate --provider voicebox --id Ryan --instruct "warm conversational" "Hi there"
   narrate verify                  # health snapshot
   narrate verify --test           # also play 1 sample per provider
 `;
@@ -85,6 +96,13 @@ function parseArgs(argv: string[]): CliArgs {
       case "-p":
       case "--provider":
         args.provider = argv[++i];
+        break;
+      case "-l":
+      case "--language":
+        args.language = argv[++i];
+        break;
+      case "--instruct":
+        args.instruct = argv[++i];
         break;
       case "-u":
       case "--url":
@@ -271,6 +289,14 @@ async function main() {
   if (args.provider) body.provider = args.provider;
   if (!args.voice && !args.voiceId && process.env.NARRATE_VOICE) {
     body.voice = process.env.NARRATE_VOICE;
+  }
+  // providerConfig overrides — these win over preset providerConfig and
+  // over auto-resolved profile defaults (e.g. voicebox profile.language).
+  const providerConfig: Record<string, unknown> = {};
+  if (args.language) providerConfig.language = args.language;
+  if (args.instruct) providerConfig.instruct = args.instruct;
+  if (Object.keys(providerConfig).length > 0) {
+    body.providerConfig = providerConfig;
   }
 
   info(args, `Narrating via ${args.provider ?? "default"}...`);
