@@ -35,6 +35,24 @@
       "voice_id": "Bella",
       "description": "Kokoro Bella (en-female) — create with examples/voicebox-create-profile.sh"
     },
+    "ryan_calm": {
+      "provider": "voicebox",
+      "voice_id": "Ryan",
+      "description": "Qwen CustomVoice Ryan with calm-engineer instruct delivery",
+      "providerConfig": {
+        "language": "en",
+        "instruct": "calm engineer reporting build status, slightly slower than normal"
+      }
+    },
+    "ryan_broadcast": {
+      "provider": "voicebox",
+      "voice_id": "Ryan",
+      "description": "Qwen CustomVoice Ryan with broadcast-news delivery",
+      "providerConfig": {
+        "language": "en",
+        "instruct": "professional and authoritative, broadcast news quality"
+      }
+    },
     "dora_local": {
       "provider": "voicebox",
       "voice_id": "Dora",

@@ -26,6 +26,14 @@ const CLIENT_ID = process.env.VOICEBOX_CLIENT_ID ?? "narrate";
 interface VoiceboxConfig {
   personality?: boolean;
   language?: string;
+  /**
+   * Natural-language delivery instruction (Qwen CustomVoice only).
+   * Examples: "warm and friendly conversational tone",
+   * "professional and authoritative, broadcast quality",
+   * "speak slowly with emphasis", "whisper, intimate and close".
+   * Other engines ignore this field.
+   */
+  instruct?: string;
   /** When true, use /generate (return audio buffer) instead of /speak (delegated playback). */
   return_audio?: boolean;
 }
@@ -134,6 +142,7 @@ export class VoiceboxProvider implements Provider {
     const speakBody: Record<string, unknown> = { text, profile: voice };
     if (language) speakBody.language = language;
     if (cfg.personality !== undefined) speakBody.personality = cfg.personality;
+    if (cfg.instruct) speakBody.instruct = cfg.instruct;
 
     const response = await fetch(`${VOICEBOX_URL}/speak`, {
       method: "POST",

@@ -1,4 +1,13 @@
 # Changelog
+## v0.3.2 — 2026-04-27
+
+### Added
+- **Voicebox `instruct` passthrough**: the voicebox provider now forwards `providerConfig.instruct` to voicebox's `/speak` endpoint. This unlocks Qwen CustomVoice's natural-language delivery control directly from narrate — no need to bypass to curl. Supported instructions include `"warm and friendly conversational tone"`, `"professional and authoritative, broadcast quality"`, `"speak slowly with emphasis"`, `"whispering, intimate and close"`, `"excited and energetic, like sports commentary"`. Other engines ignore the field.
+- **`voices.json.example` Qwen presets** showcasing the pattern: `ryan_calm` (calm-engineer delivery) and `ryan_broadcast` (news-anchor delivery), both backed by the same Qwen Ryan profile but different deliveries.
+
+### Notes
+- Qwen CustomVoice's engine name in the voicebox API is `qwen_custom_voice` (with underscores), not `qwen-customvoice`. The voicebox `/profiles/presets/{engine}` endpoint returns empty for Qwen — you must use POST `/profiles` with `voice_type: "preset"`, `preset_engine: "qwen_custom_voice"`, and `preset_voice_id` matching one of: `Ryan`, `Aiden` (English), `Vivian`, `Serena`, `Uncle Fu`, `Dylan`, `Eric` (Chinese), `Ono Anna` (Japanese), `Sohee` (Korean).
+
 ## v0.3.1 — 2026-04-27
 
 ### Added
