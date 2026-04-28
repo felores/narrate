@@ -31,9 +31,10 @@ if [ -z "$HEALTH" ] || ! echo "$HEALTH" | grep -q '"status":"healthy"'; then
 fi
 
 # ─── Server up: render plugin via single python pass on $HEALTH env var ─────
-# Resolve where THIS plugin lives — used to find the speak helper next to it.
-PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P 2>/dev/null || dirname "$0")"
-SPEAK_HELPER="$PLUGIN_DIR/narrate-menubar-speak.sh"
+# The speak helper lives in the narrate repo (NOT next to this plugin) —
+# putting helper .sh files in the SwiftBar plugin dir makes SwiftBar try
+# to run them as plugins (extra "?" menu bar icon).
+SPEAK_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-speak.sh"
 
 HEALTH="$HEALTH" \
 NARRATE_URL="$NARRATE_URL" \

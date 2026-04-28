@@ -35,12 +35,26 @@ if [ -e "$OLD_PLUGIN" ]; then
     rm -f "$OLD_PLUGIN"
 fi
 
-# Symlink (so repo updates propagate)
+# Remove a stray copy of the helper that might be in the plugin dir from
+# earlier installs — SwiftBar treats every .sh in Plugins/ as a plugin and
+# would render an unwanted "?" menu icon.
+STRAY_HELPER="$SWIFTBAR_DIR/narrate-menubar-speak.sh"
+if [ -e "$STRAY_HELPER" ]; then
+    echo "→ Removing stray helper from plugin dir (it lives in the repo)"
+    rm -f "$STRAY_HELPER"
+fi
+
+# Install the plugin as a real file (not a symlink) — SwiftBar resolves
+# script paths relative to the plugin location. The helper stays at the
+# repo and is referenced by absolute path from inside the plugin via
+# NARRATE_REPO env var (default: ~/Documents/GitHub/narrate).
 chmod +x "$PLUGIN_SRC"
-ln -sf "$PLUGIN_SRC" "$PLUGIN_DEST"
-echo "${GREEN}✅ Plugin symlinked${NC}"
+chmod +x "$SCRIPT_DIR/narrate-menubar-speak.sh"
+cp "$PLUGIN_SRC" "$PLUGIN_DEST"
+echo "${GREEN}✅ Plugin installed${NC}"
 echo "    src:  $PLUGIN_SRC"
 echo "    dst:  $PLUGIN_DEST"
+echo "    helper (referenced from repo): $SCRIPT_DIR/narrate-menubar-speak.sh"
 
 # Launch SwiftBar if not running
 if ! pgrep -lf SwiftBar > /dev/null 2>&1; then
