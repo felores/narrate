@@ -56,10 +56,14 @@ echo "    src:  $PLUGIN_SRC"
 echo "    dst:  $PLUGIN_DEST"
 echo "    helper (referenced from repo): $SCRIPT_DIR/narrate-menubar-speak.sh"
 
-# Launch SwiftBar if not running
+# Launch SwiftBar if not running, otherwise just ask it to reload plugins
+# via its URL scheme — no kill/refresh signal needed.
 if ! pgrep -lf SwiftBar > /dev/null 2>&1; then
     echo "→ Launching SwiftBar"
     open -a SwiftBar
+else
+    echo "→ Asking SwiftBar to refresh its plugins"
+    open "swiftbar://refreshallplugins" >/dev/null 2>&1 || true
 fi
 
 cat <<EOF
