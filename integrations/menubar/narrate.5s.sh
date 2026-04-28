@@ -31,11 +31,16 @@ if [ -z "$HEALTH" ] || ! echo "$HEALTH" | grep -q '"status":"healthy"'; then
 fi
 
 # ─── Server up: render plugin via single python pass on $HEALTH env var ─────
+# Resolve where THIS plugin lives — used to find the speak helper next to it.
+PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P 2>/dev/null || dirname "$0")"
+SPEAK_HELPER="$PLUGIN_DIR/narrate-menubar-speak.sh"
+
 HEALTH="$HEALTH" \
 NARRATE_URL="$NARRATE_URL" \
 NARRATE_LOG="$NARRATE_LOG" \
 PLIST="$PLIST" \
 REPO_ROOT="$REPO_ROOT" \
+SPEAK_HELPER="$SPEAK_HELPER" \
 python3 - <<'PY'
 import os, json, subprocess, shlex
 
@@ -44,6 +49,7 @@ url = os.environ['NARRATE_URL']
 log_path = os.environ['NARRATE_LOG']
 plist = os.environ['PLIST']
 repo = os.environ['REPO_ROOT']
+speak_helper = os.environ['SPEAK_HELPER']
 
 port = health.get('port', '?')
 default_provider = health.get('default_provider', '?')
@@ -70,14 +76,12 @@ for name, p in providers.items():
     extra = f"  ({reason[:40]}...)" if reason and not p.get('configured') else ""
     print(f"--{icon} {name}{extra} | color=#888888")
 
-# Quick speak — first 8 presets
+# Quick speak — first 8 presets. Use the wrapper helper next to this plugin
+# so SwiftBar only needs one clean param (the voice name), no quote escaping.
 print("---")
 print("Quick speak")
 for v in voices[:8]:
-    msg = f"Test menubar with {v}"
-    body = json.dumps({"message": msg, "voice": v, "voice_enabled": True})
-    cmd = f"curl -s -X POST {url}/notify -H 'Content-Type: application/json' -d {shlex.quote(body)}"
-    print(f"--🗣 {v} | bash='/bin/bash' param1='-c' param2={shlex.quote(cmd)} terminal=false refresh=false")
+    print(f"--🗣 {v} | bash='{speak_helper}' param1='{v}' terminal=false refresh=false")
 
 # Service control
 print("---")
