@@ -15,6 +15,10 @@ bash <(curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/integra
 
 Then **restart OpenCode**.
 
+> The install script needs `jq` to add `@opencode-ai/plugin` to `package.json`.
+> Install it: `brew install jq` (macOS). If `jq` is missing the script warns
+> and skips the dependency — add it manually or run `npm install @opencode-ai/plugin`.
+
 ## What you get
 
 ### Auto-voice
@@ -33,6 +37,14 @@ Agent: "...done, all tests pass.
 
 Say "narra eso", "read that aloud", "dilo en voz alta" — the agent calls
 `narrate_speak` and reads the text aloud.
+
+The tool returns the audio as **base64-encoded WAV** in the tool response.
+OpenCode renders a play button inline. You can also save it downstream:
+
+```bash
+# Example: pipe base64 audio to a file
+echo "$BASE64_WAV" | base64 -d > narration.wav
+```
 
 ## Requirements
 
@@ -95,6 +107,41 @@ OpenCode session
 rm -f ~/.config/opencode/plugin/narrate.js
 rm -rf ~/.config/opencode/skills/narrate
 # Optionally remove @opencode-ai/plugin from ~/.config/opencode/package.json
+```
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|-------|
+| Nothing is spoken | `narrate health` or `curl http://localhost:8888/health` — server must be running |
+| Plugin not loaded | `ls -la ~/.config/opencode/plugin/narrate.js` — file must exist |
+| `@opencode-ai/plugin` not found | `cat ~/.config/opencode/package.json \| grep @opencode-ai` — dep must be present |
+| Skill not picked up | `ls ~/.config/opencode/skills/narrate/SKILL.md` — skill must exist |
+| Plugin still not working | Restart OpenCode — plugins are loaded once at startup |
+| Errors in the plugin | Check OpenCode's terminal output — plugin `console.log` goes to stderr |
+
+## Developing the plugin
+
+The plugin source is plain JavaScript (`.js`, not `.ts`) — OpenCode's compiled
+binary loads ES modules from `plugin/` only. There is no build step.
+
+**Iteration loop:**
+
+```bash
+# 1. Edit the source
+vim integrations/opencode/narrate.js
+
+# 2. Copy to the plugin dir
+cp integrations/opencode/narrate.js ~/.config/opencode/plugin/narrate.js
+
+# 3. Restart OpenCode to reload plugins
+```
+
+To test the skill changes, copy `SKILL.md` too:
+
+```bash
+mkdir -p ~/.config/opencode/skills/narrate
+cp integrations/opencode/SKILL.md ~/.config/opencode/skills/narrate/SKILL.md
 ```
 
 ## References

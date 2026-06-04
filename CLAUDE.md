@@ -112,6 +112,18 @@ The plugin lives at `integrations/opencode/`. Three files:
 - ❌ Sending `voice` field with xAI raw ID. `ara` is the server default wire format, not a `voices.json` preset.
 - ❌ Plain object for tool definition. Must use `tool()` helper from `@opencode-ai/plugin`.
 
+**Dev loop (no build step — JS loads directly):**
+
+```bash
+# edit, copy, restart
+vim integrations/opencode/narrate.js
+cp integrations/opencode/narrate.js ~/.config/opencode/plugin/narrate.js
+# restart OpenCode
+```
+
+Plugin errors surface in OpenCode's terminal (stderr). For skill changes, also
+copy `SKILL.md` to `~/.config/opencode/skills/narrate/SKILL.md`.
+
 ## Release workflow
 
 When shipping a new version:
