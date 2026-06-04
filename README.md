@@ -254,10 +254,42 @@ Per-harness recipes live under [`integrations/`](integrations/). Summary:
 |---|---|---|
 | **Claude Code** | MCP (recommended) **or** Stop hook | [`integrations/claude-code/`](integrations/claude-code/) |
 | **Cursor / Windsurf / Cline** | MCP | [`integrations/cursor/`](integrations/cursor/) |
-| **OpenCode** | Plugin (`@opencode-ai/plugin`) | [`integrations/opencode/`](integrations/opencode/) |
+| **OpenCode** | Plugin (auto-voice + `narrate_speak` tool) | [`integrations/opencode/`](integrations/opencode/) |
 | **Pi (pi-mono)** | `agent.subscribe('turn_end')` | [`integrations/pi/`](integrations/pi/) |
 | **ChatGPT Codex CLI** | Wrapper script | [`integrations/codex/`](integrations/codex/) |
 | **Shell scripts / cron / CI** | Direct CLI | [`integrations/shell/`](integrations/shell/) |
+
+### OpenCode plugin
+
+[OpenCode](https://opencode.ai) has a built-in plugin system. The narrate plugin
+hooks into message streaming to auto-speak responses, plus provides an
+on-demand `narrate_speak` tool.
+
+**Install:**
+
+```bash
+# 1. Make sure narrate is installed and running
+brew install felores/narrate/narrate
+brew services start narrate
+
+# 2. Install the plugin
+curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/integrations/opencode/install.sh | bash
+
+# 3. Restart OpenCode
+```
+
+After installing, every response that ends with a `🤖 BOT:` marker will be
+spoken aloud automatically (the companion skill teaches the agent this
+convention). Say "narra eso", "read aloud", or "narrate" for on-demand speech.
+
+To set a different voice:
+
+```bash
+export NARRATE_OPENCODE_VOICE=researcher   # any preset from voices.json
+```
+
+See [`integrations/opencode/`](integrations/opencode/) for details, voice
+presets, and troubleshooting.
 
 ## Provider setup detail
 
