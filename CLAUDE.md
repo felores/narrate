@@ -66,6 +66,52 @@ Kokoro voices are multilingual at the model level — they're style vectors, not
 - **Don't put `.sh` files in the SwiftBar plugin dir** other than the plugin itself. SwiftBar treats every `.sh` as a plugin and renders a stray "?" icon for anything that doesn't print menu output.
 - **Login Items registration via osascript.** `integrations/menubar/install.sh` adds SwiftBar to macOS Login Items via System Events. May silently fail if the user denied permissions — script tolerates this.
 
+## OpenCode plugin — read this before changing it
+
+The plugin lives at `integrations/opencode/`. Three files:
+
+- `narrate.js` — plugin (`~/.config/opencode/plugin/narrate.js` at install time).
+- `SKILL.md` — companion skill (`~/.config/opencode/skills/narrate/SKILL.md`).
+- `install.sh` — copies both files + manages `@opencode-ai/plugin` in `package.json`.
+
+**Plugin architecture:**
+
+- Uses `@opencode-ai/plugin` SDK. Must be `.js` not `.ts` — OpenCode's compiled binary only loads JS from `plugin/`.
+- Hooks into `message.part.updated` event (fires during streaming). This carries the full text part so we can forward it to narrate incrementally. Tracks spoken part IDs in a `Set` to avoid re-speaking on subsequent updates.
+- `session.idle` hook was tested but either doesn't fire per-turn or the SDK call failed silently — do not switch back to it.
+- Exposes a custom tool `narrate_speak` via the `tool()` helper (not a plain object — zod schema parsing breaks without `tool()`).
+- All calls silently catch exceptions — TTS downtime never breaks the agent.
+
+**The `🤖 BOT:` convention:**
+
+- The companion skill (`SKILL.md`) injects instructions into the system prompt teaching the AI to append `🤖 BOT: [<15 words]` to every response.
+- The plugin listens for this marker: everything after it is extracted and sent to narrate.
+- This is the same marker convention used by Claude Code's stop hook — intentional, so both harnesses use the same pattern.
+
+**On-demand narration:**
+
+- The `narrate_speak` tool accepts any text and sends it to the narrate server.
+- Triggers: "narra tu respuesta", "narrate", "read aloud", "read that".
+- The generated narration is returned as base64 WAV in the tool response so OpenCode can display playback controls.
+
+**Voice config:**
+
+- Default voice = server default (xAI's `ara`). When no custom voice is set, omit the `voice` field entirely from the POST body — sending the raw ID as a preset name fails because `ara` is not in `voices.json`.
+- Custom voice via env var: `NARRATE_OPENCODE_VOICE=<preset_name>` (any key from `voices.json`).
+- Voice presets are per-harness in `voices.json`: `{ "voices": { "opencode": { "provider": "elevenlabs", "voice_id": "..." } } }`.
+
+**Files at install destination:**
+
+- `~/.config/opencode/plugin/narrate.js`
+- `~/.config/opencode/skills/narrate/SKILL.md`
+- `~/.config/opencode/package.json` (`@opencode-ai/plugin` added as dep)
+
+**Things that didn't work:**
+
+- ❌ `session.idle` event for auto-voice. Doesn't fire per-turn in practice.
+- ❌ Sending `voice` field with xAI raw ID. `ara` is the server default wire format, not a `voices.json` preset.
+- ❌ Plain object for tool definition. Must use `tool()` helper from `@opencode-ai/plugin`.
+
 ## Release workflow
 
 When shipping a new version:
@@ -124,6 +170,7 @@ The user's hook setup at `~/.claude/hooks/deny_check.sh` blocks shell commands a
 - Voice resolution → `src/voices.ts` (preset lookup, v1/v2 compat).
 - Config / env → `src/config.ts`.
 - Audio playback → `src/playback.ts`.
+- OpenCode integration → `integrations/opencode/` (plugin + skill + installer).
 - Log rotation → `src/logger.ts`.
 
 ## Things I already tried that didn't work
