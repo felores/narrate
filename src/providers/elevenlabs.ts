@@ -21,7 +21,9 @@ export class ElevenLabsProvider implements Provider {
   readonly name = "elevenlabs";
   readonly label = "ElevenLabs";
 
-  private apiKey = process.env.ELEVENLABS_API_KEY;
+  private get apiKey(): string | undefined {
+    return process.env.ELEVENLABS_API_KEY;
+  }
 
   health(): ProviderHealth {
     return this.apiKey

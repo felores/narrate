@@ -1,31 +1,39 @@
 # narrate + Claude Code
 
-Three integration paths, in order of recommendation:
-
-1. **MCP server** (recommended for v0.3+) — one command, no code, native tool integration.
-2. **Stop hook** — TS hook in `~/.claude/hooks/` that extracts a marker line and shells out to `narrate`.
-3. **Slash command / shell alias** — for ad-hoc narration.
-
-## Path 1: MCP (recommended)
+## Install (one command, recommended)
 
 ```bash
-claude mcp add narrate \
-  --transport http \
-  --url http://localhost:8888/mcp \
-  --header "X-Narrate-Client-Id: claude-code"
+# narrate server running first (brew services start narrate)
+bash integrations/claude-code/install.sh
 ```
 
-Claude Code now has three tools:
+Idempotent and safe to re-run. It does everything:
+
+1. **MCP server** — registers `narrate` via `claude mcp add` (streamable HTTP).
+2. **Stop hook** — copies the hook to `~/.claude/hooks/narrate-stop-hook.ts`
+   and **merges** it into `~/.claude/settings.json` (no clobber, no manual JSON).
+3. **Skill** — drops `~/.claude/skills/narrate/SKILL.md` teaching the
+   `🤖 BOT:` auto-voice convention and when to call the speak tool.
+
+Restart Claude Code. You get three MCP tools:
 
 - `mcp__narrate__speak({ text, voice?, provider?, voice_id? })`
 - `mcp__narrate__list_voices()`
 - `mcp__narrate__list_providers()`
 
-Tell the agent in your CLAUDE.md or a prompt: "When you complete a task, call `mcp__narrate__speak` with a one-line summary."
+Auto-voice: end any reply with `🤖 BOT: <short summary>` → the Stop hook speaks
+it. On-demand: ask "narra eso" → the agent calls `mcp__narrate__speak`.
 
-Coexists with [voicebox MCP](https://github.com/jamiepine/voicebox) — they listen on different ports (8888 vs 17493) and use different `X-*-Client-Id` headers.
+```bash
+bash install.sh --no-mcp       # hook + skill only
+bash install.sh --no-hook      # MCP + skill only
+NARRATE_HOOK_VOICE=researcher bash install.sh   # pick the hook voice
+```
 
-## Path 2: Stop hook (legacy / when you want a marker convention)
+Coexists with [voicebox MCP](https://github.com/jamiepine/voicebox) — different
+ports (8888 vs 17493) and `X-*-Client-Id` headers.
+
+## How the Stop hook works (reference)
 
 ## Pattern
 
@@ -36,17 +44,8 @@ The hook reads the assistant's final response, optionally extracts a "speak this
 marker (the `🤖 BOT:` convention is one common choice), and shells out to
 `narrate`.
 
-## Quick install
-
-1. Make sure the narrate server is running:
-   ```bash
-   bun run /path/to/narrate/src/server.ts &
-   ```
-2. Copy the example hook into your hooks dir:
-   ```bash
-   cp stop-hook.example.ts ~/.claude/hooks/narrate-stop-hook.ts
-   ```
-3. Reference it in your `~/.claude/settings.json` under `hooks.Stop`.
+The one-command installer above handles copying the hook and merging it into
+`settings.json` for you — this section is just reference for what it sets up.
 
 ## Marker convention
 
@@ -81,7 +80,9 @@ Configure voices.json once at `~/.config/narrate/voices.json` and reference
 preset names from your hooks — keeps the hook code stable when you swap
 providers.
 
-## Settings.json snippet
+## Settings.json snippet (manual fallback)
+
+If you skipped the installer, add this to `~/.claude/settings.json` by hand:
 
 ```jsonc
 {

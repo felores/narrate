@@ -68,11 +68,12 @@ Kokoro voices are multilingual at the model level — they're style vectors, not
 
 ## OpenCode plugin — read this before changing it
 
-The plugin lives at `integrations/opencode/`. Three files:
+The plugin lives at `integrations/opencode/`. Two files (the skill is canonical,
+copied from `skills/narrate/` — see "Canonical narrate skill" below):
 
 - `narrate.js` — plugin (`~/.config/opencode/plugin/narrate.js` at install time).
-- `SKILL.md` — companion skill (`~/.config/opencode/skills/narrate/SKILL.md`).
-- `install.sh` — copies both files + manages `@opencode-ai/plugin` in `package.json`.
+- `install.sh` — copies the plugin + the canonical skill tree, manages
+  `@opencode-ai/plugin` in `package.json`, and offers the AGENTS.md convention.
 
 **Plugin architecture:**
 
@@ -121,8 +122,156 @@ cp integrations/opencode/narrate.js ~/.config/opencode/plugin/narrate.js
 # restart OpenCode
 ```
 
-Plugin errors surface in OpenCode's terminal (stderr). For skill changes, also
-copy `SKILL.md` to `~/.config/opencode/skills/narrate/SKILL.md`.
+Plugin errors surface in OpenCode's terminal (stderr). For skill changes, edit
+the canonical `skills/narrate/` and re-run `bash integrations/opencode/install.sh`
+(it `cp -R`s the tree to `~/.config/opencode/skills/narrate/`).
+
+## Pi extension — read this before changing it
+
+The extension lives at `integrations/pi/`. Pi package structure:
+
+- `package.json` — pi manifest (`pi` key with extensions + skills + image).
+- `extensions/narrate.ts` — the extension.
+- `skills/narrate/SKILL.md` — companion skill (same convention, loadable as `/narrate`).
+- `install.sh` — manual installer (`bash install.sh` or `bash install.sh --pi`).
+
+**Extension architecture:**
+
+- No external SDK needed. Uses Pi's native `ExtensionAPI`: `pi.on()`, `pi.registerTool()`, `Type` from `typebox`.
+- Auto-voice via `message_end` (fires once per finalized assistant message). No dedup needed — unlike OpenCode's streaming `message.part.updated` which fires multiple times per part.
+- System prompt injected via `before_agent_start`. Guards against duplication (`event.systemPrompt.includes("🤖 BOT:")`) because the user's AGENTS.md or another extension may already have it.
+- Tool registered via `pi.registerTool({...})` with `Type.Object({ text: Type.String({...}) })`. No `tool()` helper needed — Pi doesn't have OpenCode's zod-vs-plain-object footgun.
+- All calls silently catch exceptions — TTS downtime never breaks the agent.
+
+**The `🤖 BOT:` convention:**
+
+- Injected into the system prompt by the extension, not just the skill. The skill is documentation-only (survives `/reload`, discoverable via `/narrate`).
+- Same marker regex as OpenCode: `MARKER_REGEX = /\u{1F916}\s*BOT:\s*(.+?)(?:\n|$)/u`.
+
+**On-demand narration:**
+
+- `narrate_speak` tool with `promptSnippet` and `promptGuidelines` for the system prompt.
+- Same triggers: "narra", "narrate", "read aloud", "narra tu respuesta".
+
+**Voice config:**
+
+- `NARRATE_PI_VOICE` env var (mirrors `NARRATE_OPENCODE_VOICE`).
+- Auth header: `X-Narrate-Client-Id: pi` (per-harness client ID for log filtering).
+
+**Files at install destination:**
+
+- `~/.pi/agent/extensions/narrate.ts`
+- `~/.pi/agent/skills/narrate/SKILL.md`
+- Or managed via `pi install` (reads `package.json` → writes to `~/.pi/agent/settings.json`).
+
+**Things that didn't work / design decisions:**
+
+- ❌ `turn_end` event for auto-voice. `message_end` is the right hook — `turn_end` fires after tool results, `message_end` fires right when the assistant message is finalized, giving faster narration.
+- ❌ Separate skill-only approach (like OpenCode). Pi's extension API is rich enough that registering everything in one file is cleaner. The separate SKILL.md is documentation, not the injection mechanism.
+- ❌ `message_update` for streaming TTS. Narrate works in full sentences. `message_end` is the right boundary.
+
+**Dev loop:**
+
+```bash
+# edit extension
+vim integrations/pi/extensions/narrate.ts
+
+# test in print mode (no TUI, fast)
+cd /tmp && pi -p --no-builtin-tools \
+  -e ~/Documents/GitHub/narrate/integrations/pi/extensions/narrate.ts \
+  "di algo breve"
+
+# test with voice override
+NARRATE_PI_VOICE=researcher pi -p --no-builtin-tools \
+  -e ~/Documents/GitHub/narrate/integrations/pi/extensions/narrate.ts \
+  "di algo"
+
+# check narrate logs
+tail -f ~/Documents/GitHub/narrate/logs/narrate.log | grep client=pi
+
+# for interactive testing, install globally then restart pi
+bash integrations/pi/install.sh
+# or: pi install ~/Documents/GitHub/narrate/integrations/pi
+```
+
+## Auto-voice injection — the load-bearing principle
+
+Auto-voice only fires if the model emits the `🤖 BOT:` marker **every turn**. A
+skill loads on demand, so it CANNOT guarantee that. The marker convention must
+live in the harness's **always-on context**:
+
+| Harness | Always-on injection | Mechanism |
+|---|---|---|
+| Pi | ✅ | extension `before_agent_start` → system prompt (guarded) |
+| Codex | ✅ | `install.sh` appends to `~/.codex/AGENTS.md` |
+| OpenCode | ✅ | `install.sh` appends a managed block to `~/.config/opencode/AGENTS.md` |
+| Claude Code | ✅ | `install.sh` appends a managed block to `~/.claude/CLAUDE.md` |
+
+Before v0.4 OpenCode + Claude Code relied only on the skill — auto-voice silently
+didn't fire for fresh users. Don't regress this: a skill is a complement, never
+the injection mechanism. The shared convention text is `skills/narrate/assets/convention.md`.
+
+## Canonical narrate skill — read this before changing it
+
+There is **one** skill source: `skills/narrate/` (SKILL.md + `scripts/detect.sh`
++ `references/{providers,setup,troubleshooting}.md` + `assets/convention.md`).
+The Claude Code and OpenCode installers **copy this whole tree** into the
+harness skills dir (`cp -R`). Don't fork per-harness skill copies again — they
+drift (we deleted the old `integrations/opencode/SKILL.md` and the Claude Code
+copy for exactly this reason).
+
+- The skill does two jobs: guided setup/onboarding (OS detect → pick providers →
+  preview voices → write config) and on-demand narration reference.
+- `references/providers.md` holds time-sensitive external facts (voice lists,
+  models, **playground URLs to preview voices**). Date-stamped; re-verify if a
+  URL 404s. Voice/model lists were verified 2026-06-06.
+- Pi still bundles its own `skills/narrate/SKILL.md` because `pi install` reads
+  the skill from inside the package dir. That's the one remaining duplicate;
+  keep it in sync with the canonical SKILL.md or migrate Pi to copy canonical.
+- Evals live in `skills/narrate/evals/evals.json`. The eval workspace
+  (`skills/narrate-workspace/`) is dev-only — do NOT commit it.
+
+## Claude Code installer — read this before changing it
+
+`integrations/claude-code/install.sh` is one-command and idempotent. It:
+
+1. Registers the MCP server via `claude mcp add` (skips if present).
+2. Copies the Stop hook to `~/.claude/hooks/narrate-stop-hook.ts`.
+3. **Merges** the Stop hook into `~/.claude/settings.json` via bun/node (never
+   clobbers existing hooks; guarded by an `includes("narrate-stop-hook")` check).
+4. Copies the canonical skill.
+5. Offers to append the `🤖 BOT:` managed block to `~/.claude/CLAUDE.md`
+   (asks on a TTY; `--convention` / `--no-convention` to bypass; non-interactive
+   runs skip it).
+
+Don't go back to the old "print JSON, user pastes it manually" flow — the whole
+point is zero manual editing, on par with the OpenCode/Pi installers.
+
+## Codex integration — read this before changing it
+
+`integrations/codex/install.sh` registers narrate as a **streamable-HTTP MCP
+server** in `~/.codex/config.toml` (idempotent append guarded by
+`grep '^\[mcp_servers\.narrate\]'`) and appends the voice convention to
+`~/.codex/AGENTS.md`. Codex supports `url` + `http_headers` under
+`[mcp_servers.NAME]` (verified 2026-06-06). Codex has no stop-hook, so auto-voice
+works by the **agent calling the `speak` tool itself** at end of turn (the
+AGENTS.md teaches this). narrate exposes streamable HTTP only — don't try to
+register a stdio command for Codex.
+
+## Windows / system provider — read this before changing it
+
+- `src/providers/system.ts` now supports `win32` via PowerShell
+  `System.Speech.Synthesis` (SAPI). Text + voice are passed via **env vars**
+  (`NARRATE_TEXT` / `NARRATE_VOICE`), never interpolated into the PS script —
+  that avoids quote/injection bugs. SAPI rate is `-10..10`, not WPM
+  (`computeSapiRate` maps it).
+- Packaging is Scoop, mirroring the Homebrew tap: `packaging/scoop/narrate.json`
+  (manifest) installs from a **bucket repo** `felores/scoop-narrate` that must be
+  created (a repo with `bucket/narrate.json`). The manifest depends on `bun`,
+  downloads the tag tarball, runs `bun install`, and generates `narrate.cmd` /
+  `narrate-server.cmd` wrappers (relative `%~dp0` paths so updates don't break
+  shims). No `brew services` equivalent — use Task Scheduler (see
+  `packaging/scoop/README.md`).
 
 ## Release workflow
 
@@ -182,7 +331,12 @@ The user's hook setup at `~/.claude/hooks/deny_check.sh` blocks shell commands a
 - Voice resolution → `src/voices.ts` (preset lookup, v1/v2 compat).
 - Config / env → `src/config.ts`.
 - Audio playback → `src/playback.ts`.
-- OpenCode integration → `integrations/opencode/` (plugin + skill + installer).
+- OpenCode integration → `integrations/opencode/` (plugin + installer; skill is canonical).
+- Pi integration → `integrations/pi/` (extension + skill + installer).
+- Claude Code integration → `integrations/claude-code/` (MCP + hook + installer).
+- Codex integration → `integrations/codex/` (MCP config + AGENTS.md + installer).
+- Canonical skill → `skills/narrate/` (copied into harness skill dirs by installers).
+- Windows packaging → `packaging/scoop/` (manifest + service docs).
 - Log rotation → `src/logger.ts`.
 
 ## Things I already tried that didn't work
@@ -197,3 +351,6 @@ The user's hook setup at `~/.claude/hooks/deny_check.sh` blocks shell commands a
 - ❌ Putting helper `.sh` next to the SwiftBar plugin. Spawns a stray menu icon.
 - ❌ `qwen-customvoice` as engine name in `/speak` calls. Use `qwen_custom_voice`.
 - ❌ Trusting `/speak` to use `profile.language`. It defaults to `en` — pass language explicitly.
+- ❌ Relying only on a skill for the `🤖 BOT:` convention. Skills load on demand; auto-voice needs it in always-on context (CLAUDE.md/AGENTS.md/system prompt).
+- ❌ Per-harness skill copies. They drift — there's one canonical `skills/narrate/` that installers copy.
+- ❌ Interpolating user text into the Windows PowerShell SAPI command. Pass via `NARRATE_TEXT`/`NARRATE_VOICE` env vars to avoid injection.

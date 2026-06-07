@@ -7,11 +7,16 @@
 ██║╚██╗██║██╔══██║██╔══██╗██╔══██╗██╔══██║   ██║   ██╔══╝  
 ██║ ╚████║██║  ██║██║  ██║██║  ██║██║  ██║   ██║   ███████╗
 ╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝
+
+                     HTTP · CLI · MCP
+         Make your AI agents speak. Zero lock-in.
 </pre>
 
-**HTTP · CLI · MCP**
+🇬🇧 **English**  ·  🇪🇸 [Español](README.es.md)
 
-Make your AI agents and scripts speak. One command, six TTS providers, zero lock-in.
+A provider-agnostic TTS gateway — one server, one set of keys, the same voice in every harness.
+
+**Claude Code · Cursor · OpenCode · Pi · Codex · any shell**
 
 </div>
 
@@ -116,7 +121,7 @@ Every coding harness reinvents voice. ElevenLabs has a UI, OpenAI has an API, Ca
 | **Google Gemini TTS** | Cloud | `GEMINI_API_KEY` | Multilingual, requires `ffmpeg` for PCM→WAV |
 | **xAI Grok TTS** | Cloud | `XAI_API_KEY` | `eve`, `ara`, `rex`, `sal`, `leo` |
 | **[Voicebox](https://github.com/jamiepine/voicebox)** | Local proxy | none | Auto-detects on `:17493` — voice cloning, 7 local engines, 23 languages |
-| **System (`say` / `espeak`)** | Local | none | Zero-dep fallback, works offline |
+| **System (`say` / `espeak` / SAPI)** | Local | none | Zero-dep fallback, works offline — macOS `say`, Linux `espeak`, Windows SAPI |
 
 Add any subset. narrate uses what you've configured and reports the rest as `⚪ not configured` in `narrate verify`.
 
@@ -143,6 +148,20 @@ bash /tmp/narrate-install.sh
 ```
 
 Clones to `~/.local/share/narrate`, writes wrappers to `~/.local/bin/{narrate,narrate-server}`, then installs the auto-start service. Override paths via `NARRATE_DIR`, `BIN_DIR`, `NARRATE_REF`.
+
+### Windows — Scoop
+
+```powershell
+scoop bucket add narrate https://github.com/felores/scoop-narrate
+scoop install narrate
+narrate-server                      # start the server
+narrate "hello from Windows"
+```
+
+Bun is pulled in as a dependency. Uses Windows SAPI (`System.Speech`) out of the
+box — no API key needed. Run it at login with Task Scheduler. See
+[`packaging/scoop/`](packaging/scoop/) for the manifest, service setup, and
+premium-voice config.
 
 ### Development — git clone
 
@@ -265,14 +284,18 @@ The agent now sees `narrate.speak`, `narrate.list_voices`, and `narrate.list_pro
 
 Per-harness recipes live under [`integrations/`](integrations/). Summary:
 
-| Harness | Method | Recipe |
-|---|---|---|
-| **Claude Code** | MCP (recommended) **or** Stop hook | [`integrations/claude-code/`](integrations/claude-code/) |
-| **Cursor / Windsurf / Cline** | MCP | [`integrations/cursor/`](integrations/cursor/) |
-| **OpenCode** | Plugin (auto-voice + `narrate_speak` tool) | [`integrations/opencode/`](integrations/opencode/) |
-| **Pi (pi-mono)** | `agent.subscribe('turn_end')` | [`integrations/pi/`](integrations/pi/) |
-| **ChatGPT Codex CLI** | Wrapper script | [`integrations/codex/`](integrations/codex/) |
-| **Shell scripts / cron / CI** | Direct CLI | [`integrations/shell/`](integrations/shell/) |
+| Harness | Method | One-command install | Recipe |
+|---|---|---|---|
+| **Claude Code** | MCP + Stop hook + skill | `bash integrations/claude-code/install.sh` | [`integrations/claude-code/`](integrations/claude-code/) |
+| **OpenCode** | Plugin (auto-voice + `narrate_speak` tool) | `integrations/opencode/install.sh` | [`integrations/opencode/`](integrations/opencode/) |
+| **Pi (pi-mono)** | Extension (`message_end` auto-voice) + skill | `integrations/pi/install.sh` | [`integrations/pi/`](integrations/pi/) |
+| **ChatGPT Codex CLI** | MCP (streamable HTTP) + AGENTS.md | `bash integrations/codex/install.sh` | [`integrations/codex/`](integrations/codex/) |
+| **Cursor / Windsurf / Cline** | MCP | manual config snippet | [`integrations/cursor/`](integrations/cursor/) |
+| **Shell scripts / cron / CI** | Direct CLI | n/a | [`integrations/shell/`](integrations/shell/) |
+
+The four first-class harnesses (Claude Code, OpenCode, Pi, Codex) ship a
+one-command installer that auto-registers everything (MCP, hooks/extensions, the
+`🤖 BOT:` auto-voice convention, and a companion skill). No manual JSON editing.
 
 ### OpenCode plugin
 
@@ -362,21 +385,26 @@ open /Applications/Voicebox.app
 narrate --provider voicebox --id Bella "Local voice"
 ```
 
-### System (`say` / `espeak`)
+### System (`say` / `espeak` / SAPI)
 
-Zero config on macOS — `say` is built in. On Linux, install `espeak-ng`:
+Zero config on macOS — `say` is built in. Zero config on Windows — uses
+`System.Speech.Synthesis` (SAPI) via PowerShell. On Linux, install `espeak-ng`:
 
 ```bash
 sudo apt install espeak-ng     # Debian/Ubuntu
 sudo dnf install espeak-ng     # Fedora
 ```
 
-Voice names: any voice your system speaks. On macOS:
+Voice names: any voice your system speaks.
 
 ```bash
-say -v '?'                      # list all installed voices
+# macOS
+say -v '?'                                          # list installed voices
 narrate --provider system --id Samantha "macOS Samantha"
-narrate --provider system --id "Daniel" "British Daniel"
+
+# Windows — use any installed SAPI voice by name
+# (manage voices in Settings → Time & Language → Speech)
+narrate --provider system --id "Microsoft Zira Desktop" "Windows Zira"
 ```
 
 ## Voicebox deep dive
@@ -870,7 +898,8 @@ Use **narrate** when you want one command that any harness or shell can call, mi
 | ✅ v0.3.4 | SwiftBar / xbar menubar plugin |
 | ✅ v0.3.5 | Portability fixes — `/health` exposes `repo_dir`/`logs_dir`, plugin auto-locates, SwiftBar Login Items autostart, plist drops `$PATH` snapshot |
 | ✅ v0.3.6 | First-run UX: default provider is `system` so fresh installs work without API keys. README rewritten for non-technical users with a 3-command quickstart at the top. |
-| Planned v0.4 | Pre-built single-binary releases (`bun build --compile` per platform) |
+| ✅ v0.4.0 | Windows support (SAPI system provider + Scoop bucket). Canonical `narrate` skill (guided setup + voice previews). One-command installers for Claude Code + Codex. Auto-voice always-on injection fix. Pi extension. Spanish README. |
+| Planned v0.5 | Pre-built single-binary releases (`bun build --compile` per platform) |
 | Planned v0.5 | More providers (Cartesia, Hume EVI, Azure TTS) |
 | Planned v0.6 | `--direct` CLI mode (skip server, call providers directly) |
 | Planned v0.7 | Streaming TTS over WebSocket |

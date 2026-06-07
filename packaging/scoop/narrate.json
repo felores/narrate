@@ -1,0 +1,33 @@
+{
+  "version": "0.3.6",
+  "description": "Provider-agnostic TTS gateway and CLI for AI coding harnesses",
+  "homepage": "https://github.com/felores/narrate",
+  "license": "MIT",
+  "depends": "main/bun",
+  "url": "https://github.com/felores/narrate/archive/refs/tags/v0.3.6.tar.gz",
+  "hash": "a47e7535e5f41f9d5219af15669cc64a589499ab8acd69e5e16ed60486586170",
+  "extract_dir": "narrate-0.3.6",
+  "pre_install": [
+    "Set-Content -Encoding Ascii -Path \"$dir\\narrate.cmd\" -Value '@bun run \"%~dp0src\\cli.ts\" %*'",
+    "Set-Content -Encoding Ascii -Path \"$dir\\narrate-server.cmd\" -Value '@bun run \"%~dp0src\\server.ts\" %*'"
+  ],
+  "bin": [
+    "narrate.cmd",
+    "narrate-server.cmd"
+  ],
+  "post_install": [
+    "Push-Location \"$dir\"; bun install --frozen-lockfile; Pop-Location"
+  ],
+  "notes": [
+    "narrate is installed. Start the server with:  narrate-server",
+    "Then speak with:  narrate \"hello from Windows\"",
+    "The system provider uses Windows SAPI (System.Speech) - no API key needed.",
+    "For premium voices add keys to %USERPROFILE%\\.env (ELEVENLABS_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, XAI_API_KEY).",
+    "Run the server at login: see packaging/scoop/README.md (Task Scheduler)."
+  ],
+  "checkver": "github",
+  "autoupdate": {
+    "url": "https://github.com/felores/narrate/archive/refs/tags/v$version.tar.gz",
+    "extract_dir": "narrate-$version"
+  }
+}

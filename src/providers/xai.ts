@@ -21,7 +21,9 @@ export class XaiProvider implements Provider {
   readonly name = "xai";
   readonly label = "xAI Grok TTS";
 
-  private apiKey = process.env.XAI_API_KEY;
+  private get apiKey(): string | undefined {
+    return process.env.XAI_API_KEY;
+  }
 
   health(): ProviderHealth {
     return this.apiKey

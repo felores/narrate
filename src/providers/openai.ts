@@ -27,7 +27,9 @@ export class OpenAIProvider implements Provider {
   readonly name = "openai";
   readonly label = "OpenAI TTS";
 
-  private apiKey = process.env.OPENAI_API_KEY;
+  private get apiKey(): string | undefined {
+    return process.env.OPENAI_API_KEY;
+  }
 
   health(): ProviderHealth {
     return this.apiKey

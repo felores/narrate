@@ -1,0 +1,24 @@
+{
+  "name": "pi-narrate",
+  "version": "0.1.0",
+  "description": "Voice output for pi coding agent via narrate TTS. Auto-reads 🤖 BOT: markers and provides on-demand narration.",
+  "keywords": ["pi-package", "pi-extension", "pi-skill", "narrate", "tts", "voice"],
+  "author": "Felo Restrepo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/felores/narrate",
+    "directory": "integrations/pi"
+  },
+  "pi": {
+    "extensions": ["./extensions/narrate.ts"],
+    "skills": ["./skills/narrate/SKILL.md"],
+    "image": "https://raw.githubusercontent.com/felores/narrate/main/assets/pi-narrate.png"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "@earendil-works/pi-ai": "*",
+    "typebox": "*"
+  }
+}

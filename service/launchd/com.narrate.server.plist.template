@@ -37,11 +37,15 @@
     <!-- launchd-only: captures pre-init startup output + crashes.        -->
     <!-- The real per-request log is logs/narrate.log written by the      -->
     <!-- in-process rotating logger (src/logger.ts).                      -->
+    <!--                                                                  -->
+    <!-- Must live OUTSIDE ~/Documents. Recent macOS sandbox TCC denies    -->
+    <!-- xpcproxy read access to files under ~/Documents, which aborts    -->
+    <!-- the spawn before bun even runs (exit 78, empty stderr).          -->
     <key>StandardOutPath</key>
-    <string>__NARRATE_DIR__/logs/launchd-stdout.log</string>
+    <string>__HOME__/Library/Logs/narrate/launchd-stdout.log</string>
 
     <key>StandardErrorPath</key>
-    <string>__NARRATE_DIR__/logs/launchd-stderr.log</string>
+    <string>__HOME__/Library/Logs/narrate/launchd-stderr.log</string>
 
     <key>ThrottleInterval</key>
     <integer>10</integer>

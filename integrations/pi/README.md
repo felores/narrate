@@ -1,115 +1,80 @@
-# narrate + Pi (pi-mono)
+# narrate + Pi
 
-[Pi](https://github.com/badlogic/pi-mono) is a minimal terminal coding harness
-built on `@mariozechner/pi-agent-core`. Pi exposes a stateful agent with a
-clean event subscription API — perfect for narration.
+Voice output for the [pi](https://pi.dev) coding agent via [narrate](https://github.com/felores/narrate) TTS.
 
-## What Pi actually exposes
+## What it does
 
-The agent emits a structured event sequence per turn:
+- **Auto-voice**: reads every `🤖 BOT: ...` marker aloud at the end of responses
+- **On-demand**: `narrate_speak` tool for "narra", "read aloud", "speak this"
+- **System prompt**: injects the `🤖 BOT:` convention automatically
 
-```text
-prompt("Hello")
-├─ agent_start
-├─ turn_start
-├─ message_start    { message: userMessage }
-├─ message_end      { message: userMessage }
-├─ message_start    { message: assistantMessage }
-├─ message_update   { message: partial... }   // streaming
-├─ message_end      { message: assistantMessage }
-├─ turn_end         { message, toolResults: [] }
-└─ agent_end        { messages: [...] }
-```
-
-Source: [`packages/agent/README.md`](https://github.com/badlogic/pi-mono/blob/main/packages/agent/README.md)
-
-The right hook for narration is **`turn_end`** — fires once per turn with the
-final assistant message and any tool results.
-
-## SDK integration
-
-If you embed Pi via SDK:
-
-```typescript
-import { Agent } from "@mariozechner/pi-agent-core";
-import { getModel } from "@mariozechner/pi-ai";
-
-const NARRATE_URL = process.env.NARRATE_URL ?? "http://localhost:8888";
-const VOICE_PRESET = process.env.NARRATE_PI_VOICE ?? "researcher";
-
-async function speak(text: string): Promise<void> {
-  if (!text) return;
-  try {
-    await fetch(`${NARRATE_URL}/notify`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Narrate-Client-Id": "pi",
-      },
-      body: JSON.stringify({
-        message: text.slice(0, 500),
-        voice: VOICE_PRESET,
-        voice_enabled: true,
-      }),
-    });
-  } catch {
-    /* never block the agent on TTS */
-  }
-}
-
-const agent = new Agent({
-  initialState: {
-    systemPrompt: "You are a helpful assistant.",
-    model: getModel("anthropic", "claude-sonnet-4-20250514"),
-  },
-});
-
-agent.subscribe((event) => {
-  if (event.type === "turn_end") {
-    const text = event.message?.content
-      ?.filter((b: { type: string }) => b.type === "text")
-      ?.map((b: { text: string }) => b.text)
-      .join(" ");
-    if (text) void speak(text);
-  }
-});
-
-await agent.prompt("Hello!");
-```
-
-## CLI integration (Pi extension)
-
-Pi supports **Extensions** — TypeScript packages that add commands, hooks, or
-tools without forking. See the [Pi packages
-guide](https://github.com/badlogic/pi-mono#pi-packages).
-
-Wrap the agent's stop event in a Pi extension and ship it as
-`pi-narrate-extension` on npm. Until that exists, the simplest path is the
-SDK integration above.
-
-## Wrapper script (no SDK changes)
-
-For interactive Pi sessions, redirect stdout and narrate the last line:
+## Install
 
 ```bash
-pi "$@" 2>&1 | tee /tmp/pi.out
-last=$(tail -n 1 /tmp/pi.out)
-[ -n "$last" ] && narrate --quiet --voice researcher "$last"
+# Option 1: via pi install (recommended)
+pi install git:github.com/felores/narrate/integrations/pi
+
+# Option 2: local path
+pi install ~/Documents/GitHub/narrate/integrations/pi
+
+# Option 3: manual copy
+bash install.sh
 ```
 
-## Tips
+## Prerequisites
 
-- **Voice per agent**: `NARRATE_PI_VOICE=researcher` so Pi sounds different
-  from your other harnesses.
-- **Skip tool-only turns**: in `turn_end`, check
-  `event.toolResults?.length > 0 && !event.message?.content` and skip
-  narration for tool-call-only turns to avoid noise.
-- **Streaming TTS**: don't subscribe to `message_update` — narrate works in
-  full sentences. `turn_end` is the right boundary.
+- narrate server running: `brew services start narrate`
+- Pi 0.3.0+ (needs extension API)
 
-## References
+## Configuration (optional)
 
-- Pi-mono repo: https://github.com/badlogic/pi-mono
-- pi-agent-core README: https://github.com/badlogic/pi-mono/blob/main/packages/agent/README.md
-- Pi extensions docs: https://github.com/badlogic/pi-mono#extensions
-- Real-world SDK integration example: https://github.com/openclaw/openclaw
+```bash
+export NARRATE_URL=http://localhost:8888
+export NARRATE_PI_VOICE=researcher    # any voice from ~/.config/narrate/voices.json
+```
+
+## How it works
+
+```
+pi session
+├── before_agent_start → injects 🤖 BOT: convention
+├── message_end (assistant) → extract 🤖 BOT: marker, speak it
+└── narrate_speak tool → on-demand narration
+```
+
+Uses Pi's native extension API — no external SDK dependencies. `message_end` fires once per finalized assistant message, so we don't need the complex dedup we had with OpenCode's streaming `message.part.updated`.
+
+## Cross-harness compatibility
+
+The `🤖 BOT:` convention works across all harnesses:
+
+| Harness | Integration | Location |
+|---------|-------------|----------|
+| **Pi** | Extension | `integrations/pi/` |
+| **Claude Code** | Stop hook | `~/.claude/hooks/stop.sh` |
+| **OpenCode** | Plugin | `~/.config/opencode/plugin/narrate.js` |
+| **Codex** | Extension | `integrations/codex/` |
+| **Cursor** | Shell wrapper | `integrations/cursor/` |
+
+## Files
+
+```
+integrations/pi/
+├── package.json          # pi package manifest
+├── extensions/
+│   └── narrate.ts        # main extension
+├── skills/
+│   └── narrate/
+│       └── SKILL.md      # convention docs (loadable as /narrate)
+├── install.sh            # manual installer
+└── README.md             # this file
+```
+
+## publish to npm
+
+```bash
+cd integrations/pi
+npm publish --access public
+```
+
+Then: `pi install npm:pi-narrate`

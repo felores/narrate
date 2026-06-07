@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.4.0 — 2026-06-07
+
+### Added
+- **Windows support**:
+  - `system` provider now speaks on Windows via PowerShell `System.Speech.Synthesis` (SAPI) — zero deps, offline, no API key, the Windows peer of macOS `say` / Linux `espeak`. Text and voice are passed via env vars (`NARRATE_TEXT` / `NARRATE_VOICE`) to avoid PowerShell injection; SAPI's `-10..10` rate is mapped from the WPM/multiplier intent. `listVoices()` enumerates installed SAPI voices.
+  - **Scoop packaging** (`packaging/scoop/narrate.json`) mirroring the Homebrew tap, installed from the [`felores/scoop-narrate`](https://github.com/felores/scoop-narrate) bucket: `scoop bucket add narrate … && scoop install narrate`. Depends on `bun`, generates `narrate.cmd` / `narrate-server.cmd` shims in `pre_install` (before Scoop's `create_shims`). Run-at-login via Task Scheduler.
+- **Canonical `narrate` skill** (`skills/narrate/`): guided setup/onboarding (OS detection via `scripts/detect.sh`, provider selection, **voice-preview playground links**, config writing) plus an on-demand narration reference. One source, copied into each harness's skills dir by its installer.
+- **Claude Code one-command installer** (`integrations/claude-code/install.sh`): idempotently registers the MCP server, copies the Stop hook and **merges it into `settings.json`** (no manual JSON editing), copies the canonical skill, and offers to add the `🤖 BOT:` convention to `~/.claude/CLAUDE.md`.
+- **Codex integration** (`integrations/codex/install.sh`): registers narrate as a streamable-HTTP MCP server in `~/.codex/config.toml` and adds the voice convention to `~/.codex/AGENTS.md`.
+- **Pi extension** (`integrations/pi/`): native `ExtensionAPI` extension with `message_end` auto-voice, system-prompt injection, and a `narrate_speak` tool; installable via `pi install` or `install.sh`.
+- **Spanish README** (`README.es.md`) with a 🇬🇧/🇪🇸 language switcher and a centered ASCII banner on both READMEs.
+
+### Fixed
+- **Auto-voice reliability for OpenCode + Claude Code**: the `🤖 BOT:` convention is now written to the harness's always-on context (`AGENTS.md` / `CLAUDE.md`) by the installer, not left only in a skill. Skills load on demand, so auto-voice silently didn't fire for fresh users. (Pi injects via the extension; Codex via AGENTS.md.)
+- **Provider API-key import-order race**: `apiKey` on the ElevenLabs / OpenAI / Gemini / xAI providers is now a lazy getter, read from `process.env` at call time instead of cached at construction — fixes voice generation failing when the provider was instantiated before `~/.env` was loaded.
+- **launchd logs moved out of `~/Documents`**: recent macOS TCC sandboxing denies `xpcproxy` read access under `~/Documents`, aborting the spawn (exit 78). `StandardOutPath`/`StandardErrorPath` now live under `~/Library/Logs/narrate/`.
+
+### Changed
+- README leads with the provider-agnostic pitch + harness matrix; harness table documents the one-command installers and the streamable-HTTP MCP path for Codex/Cursor.
+
 ## v0.3.6 — 2026-04-28
 
 ### Fixed

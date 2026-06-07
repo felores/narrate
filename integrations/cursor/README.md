@@ -71,8 +71,9 @@ Cline supports custom auto-approve actions. Wrap a shell command:
 narrate --quiet --voice cline_voice "$ARGUMENTS"
 ```
 
-## MCP route (future)
+## Note
 
-A future version of narrate will expose an MCP server (`narrate.speak` tool)
-so any MCP-aware editor (Cursor, Windsurf, Claude Code, etc.) can call it
-without shelling out. Until then, the CLI/HTTP path covers all of them.
+The MCP route at the top of this file is the recommended path — narrate exposes
+a streamable-HTTP MCP server (`narrate.speak`, `list_voices`, `list_providers`),
+so any MCP-aware editor calls it natively without shelling out. The shell tasks
+above are only a fallback for editors without MCP support.

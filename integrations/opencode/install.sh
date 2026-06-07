@@ -4,21 +4,43 @@
 #
 # Installs:
 #   1. Plugin → ~/.config/opencode/plugin/narrate.js
-#   2. Skill  → ~/.config/opencode/skills/narrate/SKILL.md
+#   2. Skill  → ~/.config/opencode/skills/narrate/ (canonical skill, copied)
 #   3. Dependency → adds @opencode-ai/plugin to ~/.config/opencode/package.json
+#   4. AGENTS.md → 🤖 BOT: auto-voice convention (asks first)
+#
+# Why step 4: the plugin listens for the 🤖 BOT: marker but doesn't inject the
+# convention into the model's context. A skill loads on demand, so it can't make
+# the model emit the marker every turn. The convention has to live in always-on
+# context (AGENTS.md). We ask before editing AGENTS.md.
 #
 # Usage:
 #   bash install.sh                    # global install (~/.config/opencode/)
 #   bash install.sh --project          # project-level install (.opencode/)
+#   bash install.sh --convention       # inject AGENTS.md block without prompting
+#   bash install.sh --no-convention    # never touch AGENTS.md
 #
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_SRC="$SCRIPT_DIR/narrate.js"
-SKILL_SRC="$SCRIPT_DIR/SKILL.md"
+CANON_SKILL="$SCRIPT_DIR/../../skills/narrate"
+CONVENTION_SRC="$CANON_SKILL/assets/convention.md"
 
-if [ "${1:-}" = "--project" ]; then
+MARK_BEGIN="<!-- >>> narrate auto-voice (managed) >>> -->"
+MARK_END="<!-- <<< narrate auto-voice (managed) <<< -->"
+
+CONVENTION=ask          # ask | yes | no
+PROJECT=false
+for arg in "$@"; do
+  case "$arg" in
+    --project)       PROJECT=true ;;
+    --convention)    CONVENTION=yes ;;
+    --no-convention) CONVENTION=no ;;
+  esac
+done
+
+if [ "$PROJECT" = true ]; then
   BASE_DIR="$(pwd)/.opencode"
   echo "→ Installing at project level: $BASE_DIR"
 else
@@ -28,6 +50,7 @@ fi
 
 PLUGIN_DIR="$BASE_DIR/plugin"
 SKILL_DIR="$BASE_DIR/skills/narrate"
+AGENTS_MD="$BASE_DIR/AGENTS.md"
 
 # ── Create directories ──────────────────────────────────────────
 mkdir -p "$PLUGIN_DIR" "$SKILL_DIR"
@@ -41,12 +64,12 @@ else
   echo "✅ Plugin → $PLUGIN_DIR/narrate.js"
 fi
 
-# ── Install skill ───────────────────────────────────────────────
-if [ -f "$SKILL_DIR/SKILL.md" ]; then
-  echo "ℹ️  $SKILL_DIR/SKILL.md already exists — leaving it."
+# ── Install skill (canonical, copied) ───────────────────────────
+if [ -d "$CANON_SKILL" ]; then
+  cp -R "$CANON_SKILL/." "$SKILL_DIR/"
+  echo "✅ Skill  → $SKILL_DIR/ (canonical)"
 else
-  cp "$SKILL_SRC" "$SKILL_DIR/SKILL.md"
-  echo "✅ Skill  → $SKILL_DIR/SKILL.md"
+  echo "⚠️  Canonical skill not found at $CANON_SKILL — run from the repo to install the skill."
 fi
 
 # ── Ensure @opencode-ai/plugin dependency ───────────────────────
@@ -78,6 +101,41 @@ if [ "$NEED_INSTALL" = true ]; then
   (cd "$BASE_DIR" && bun install) 2>/dev/null || npm install --prefix "$BASE_DIR" 2>/dev/null || echo "⚠️  Could not auto-install. Run 'bun install' in $BASE_DIR manually."
 fi
 
+# ── Auto-voice convention → AGENTS.md (asks first) ──────────────
+inject_convention() {
+  if [ ! -f "$CONVENTION_SRC" ]; then
+    echo "⚠️  Convention snippet not found — skipping AGENTS.md."
+    return
+  fi
+  if [ -f "$AGENTS_MD" ] && grep -qF "$MARK_BEGIN" "$AGENTS_MD"; then
+    echo "✅ Auto-voice convention already in $AGENTS_MD"
+    return
+  fi
+  {
+    printf '\n%s\n' "$MARK_BEGIN"
+    cat "$CONVENTION_SRC"
+    printf '%s\n' "$MARK_END"
+  } >> "$AGENTS_MD"
+  echo "✅ Auto-voice convention added to $AGENTS_MD"
+  echo "   (remove the block between the 'narrate auto-voice (managed)' markers to undo)"
+}
+
+case "$CONVENTION" in
+  yes) inject_convention ;;
+  no)  echo "ℹ️  Skipped AGENTS.md convention (--no-convention)." ;;
+  ask)
+    if [ -t 0 ]; then
+      printf '\n❓ Add the 🤖 BOT: auto-voice convention to %s?\n' "$AGENTS_MD"
+      printf '   Without it, auto-voice will not fire for fresh sessions. [y/N] '
+      read -r reply </dev/tty || reply=""
+      case "$reply" in [yY]*) inject_convention ;; *) echo "ℹ️  Left AGENTS.md unchanged." ;; esac
+    else
+      echo "ℹ️  Non-interactive run — not touching AGENTS.md."
+      echo "   Re-run with --convention to add the 🤖 BOT: auto-voice block, or add it manually."
+    fi
+    ;;
+esac
+
 # ── Done ────────────────────────────────────────────────────────
 cat <<'EOF'
 
@@ -88,8 +146,7 @@ cat <<'EOF'
 
   Prerequisites:
   • narrate server running (brew services start narrate)
-  • Your agent's system prompt includes the 🤖 BOT: convention
-    (the companion skill adds it automatically)
+  • The 🤖 BOT: convention in AGENTS.md (this installer offers to add it)
 
   Env vars (optional):
     NARRATE_URL=http://localhost:8888

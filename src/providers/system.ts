@@ -1,8 +1,9 @@
 /**
  * System provider — uses the OS-bundled TTS command.
  *
- *   macOS:  `say` (always available)
- *   Linux:  `espeak` or `espeak-ng`
+ *   macOS:    `say` (always available)
+ *   Linux:    `espeak` or `espeak-ng`
+ *   Windows:  PowerShell `System.Speech.Synthesis` (always available)
  *
  * Audio is played directly by the OS command (delegated=true). No API key
  * needed. Useful as a zero-dep fallback when cloud providers fail.
@@ -25,13 +26,14 @@ interface SystemConfig {
 
 export class SystemProvider implements Provider {
   readonly name = "system";
-  readonly label = "System TTS (say/espeak)";
+  readonly label = "System TTS (say/espeak/SAPI)";
 
   private platform = process.platform;
   private linuxCmd: "espeak-ng" | "espeak" | null = null;
 
   async health(): Promise<ProviderHealth> {
     if (this.platform === "darwin") return { configured: true };
+    if (this.platform === "win32") return { configured: true };
     if (this.platform === "linux") {
       if (await commandExists("espeak-ng")) {
         this.linuxCmd = "espeak-ng";
@@ -78,6 +80,24 @@ export class SystemProvider implements Provider {
       if (voice) args.push("-v", voice);
       args.push(text);
       await runCommand(this.linuxCmd, args);
+    } else if (this.platform === "win32") {
+      // SAPI rate is -10..10 (0 = normal), not WPM. Map from the multiplier.
+      const sapiRate = this.computeSapiRate(opts);
+      // Text + voice are passed via env vars (not interpolated) to avoid
+      // PowerShell injection/quote-escaping issues.
+      const script =
+        "Add-Type -AssemblyName System.Speech;" +
+        "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer;" +
+        `$s.Rate = ${sapiRate};` +
+        (voice
+          ? "try { $s.SelectVoice([string]$env:NARRATE_VOICE) } catch {};"
+          : "") +
+        "$s.Speak([string]$env:NARRATE_TEXT)";
+      await runCommand(
+        "powershell",
+        ["-NoProfile", "-NonInteractive", "-Command", script],
+        { ...process.env, NARRATE_TEXT: text, NARRATE_VOICE: voice },
+      );
     } else {
       throw new ProviderError(
         this.name,
@@ -95,7 +115,17 @@ export class SystemProvider implements Provider {
     return Math.round(base * mult);
   }
 
+  /** Map a WPM/multiplier intent onto SAPI's -10..10 rate scale. */
+  private computeSapiRate(opts: ProviderOptions): number {
+    const base = opts.rate_wpm ?? 175;
+    const mult = opts.rate_multiplier ?? 1.0;
+    // 175 wpm ≈ normal (0). Each ~17.5 wpm step ≈ 1 SAPI unit.
+    const sapi = Math.round(((base * mult) / 175 - 1) * 10);
+    return Math.max(-10, Math.min(10, sapi));
+  }
+
   async listVoices(): Promise<VoiceInfo[]> {
+    if (this.platform === "win32") return this.listWindowsVoices();
     if (this.platform !== "darwin") return [];
     return new Promise((resolve) => {
       const proc = spawn("say", ["-v", "?"]);
@@ -122,6 +152,42 @@ export class SystemProvider implements Provider {
       });
     });
   }
+
+  private listWindowsVoices(): Promise<VoiceInfo[]> {
+    const script =
+      "Add-Type -AssemblyName System.Speech;" +
+      "(New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices()" +
+      ' | ForEach-Object { $i = $_.VoiceInfo; "$($i.Name)|$($i.Culture.Name)" }';
+    return new Promise((resolve) => {
+      const proc = spawn("powershell", [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        script,
+      ]);
+      let out = "";
+      proc.stdout.on("data", (chunk) => {
+        out += chunk.toString();
+      });
+      proc.on("error", () => resolve([]));
+      proc.on("exit", () => {
+        const voices = out
+          .trim()
+          .split(/\r?\n/)
+          .map((line): VoiceInfo | null => {
+            const [name, lang] = line.split("|");
+            if (!name) return null;
+            return {
+              id: name.trim(),
+              name: name.trim(),
+              language: lang?.trim(),
+            };
+          })
+          .filter((v): v is VoiceInfo => v !== null);
+        resolve(voices);
+      });
+    });
+  }
 }
 
 function commandExists(cmd: string): Promise<boolean> {
@@ -132,9 +198,13 @@ function commandExists(cmd: string): Promise<boolean> {
   });
 }
 
-function runCommand(cmd: string, args: string[]): Promise<void> {
+function runCommand(
+  cmd: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+): Promise<void> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args);
+    const proc = spawn(cmd, args, env ? { env } : {});
     proc.on("error", reject);
     proc.on("exit", (code) => {
       if (code === 0) resolve();

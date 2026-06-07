@@ -40,6 +40,8 @@ fi
 
 mkdir -p "$NARRATE_DIR/logs"
 mkdir -p "$HOME/Library/LaunchAgents"
+# launchd-stdout/stderr must live outside ~/Documents — see template comment.
+mkdir -p "$HOME/Library/Logs/narrate"
 
 # ─── Render template ────────────────────────────────────────────────────────
 echo "→ Rendering $PLIST_NAME"

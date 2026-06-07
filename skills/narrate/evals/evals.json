@@ -1,0 +1,33 @@
+{
+  "skill_name": "narrate",
+  "evals": [
+    {
+      "id": 0,
+      "name": "setup-with-openai-key",
+      "prompt": "I just installed narrate on my Mac and I want my coding assistant to talk to me with a nice voice. I think I already have an OpenAI API key somewhere. Help me get this set up — I'm not sure what's configured yet.",
+      "expected_output": "Agent runs the detection script FIRST to see current state, confirms the server is up, recommends OpenAI (since user has that key) and/or asks preference, shares the openai.fm preview URL so the user can hear voices, explains keys go in ~/.env not ~/.zshrc, and produces a correct config.json + a voices.json preset using the v2 schema (provider+voice_id). Should mention narrate verify to confirm.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "voice-discovery",
+      "prompt": "which voice should I use for narration? I want something really high quality and I'd like to actually listen to the options before deciding. where do I do that?",
+      "expected_output": "Agent recommends ElevenLabs for highest quality (and/or compares providers), and gives the actual browser URL(s) where the user can preview/listen to voices (e.g. elevenlabs.io/voice-library, openai.fm). Does not invent fake URLs. Explains the voice_id concept for ElevenLabs.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "on-demand-narration",
+      "prompt": "narra esto en voz alta: el deploy terminó y todos los tests pasan",
+      "expected_output": "Agent actually invokes a narration mechanism (the narrate MCP/plugin tool if available, else the narrate CLI, else POST /notify) to speak the Spanish phrase — it does not just print the text. Keeps it concise.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "autovoice-not-firing",
+      "prompt": "auto-voice in my Claude Code stopped working. It used to read out a summary after each response and now it's totally silent. The narrate server is running fine and I can run `narrate \"test\"` and hear it. What's wrong?",
+      "expected_output": "Agent diagnoses the always-on-context gap: the 🤖 BOT: convention must live in ~/.claude/CLAUDE.md (or be injected), not only in a skill, because skills load on demand. Since the CLI works, the server/audio is fine — the issue is the model not emitting the marker or the Stop hook not registered. Should check CLAUDE.md for the convention and the Stop hook in settings.json.",
+      "files": []
+    }
+  ]
+}

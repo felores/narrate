@@ -23,7 +23,9 @@ export class GeminiProvider implements Provider {
   readonly name = "gemini";
   readonly label = "Google Gemini TTS";
 
-  private apiKey = process.env.GEMINI_API_KEY;
+  private get apiKey(): string | undefined {
+    return process.env.GEMINI_API_KEY;
+  }
 
   async health(): Promise<ProviderHealth> {
     if (!this.apiKey) {

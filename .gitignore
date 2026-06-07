@@ -24,3 +24,6 @@ logs/
 *.pcm
 narrate-*.mp3
 narrate-*.wav
+
+# skill eval workspace (dev-only, not shipped)
+skills/narrate-workspace/
