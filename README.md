@@ -8,7 +8,7 @@
 ██║ ╚████║██║  ██║██║  ██║██║  ██║██║  ██║   ██║   ███████╗
 ╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝
 
-                     HTTP · CLI · MCP
+              HTTP · CLI · MCP
          Make your AI agents speak. Zero lock-in.
 </pre>
 
