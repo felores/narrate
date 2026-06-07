@@ -1,6 +1,21 @@
-# narrate
+<div align="center">
 
-> Make your AI agents and scripts speak. One command, six TTS providers, zero lock-in.
+<pre>
+███╗   ██╗ █████╗ ██████╗ ██████╗  █████╗ ████████╗███████╗
+████╗  ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔════╝
+██╔██╗ ██║███████║██████╔╝██████╔╝███████║   ██║   █████╗  
+██║╚██╗██║██╔══██║██╔══██╗██╔══██╗██╔══██║   ██║   ██╔══╝  
+██║ ╚████║██║  ██║██║  ██║██║  ██║██║  ██║   ██║   ███████╗
+╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝
+</pre>
+
+**HTTP · CLI · MCP**
+
+Make your AI agents and scripts speak. One command, six TTS providers, zero lock-in.
+
+</div>
+
+---
 
 ## 60-second quickstart (macOS)
 
