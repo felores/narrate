@@ -87,7 +87,10 @@ export default function (pi: ExtensionAPI) {
     if (!text) return;
 
     const botText = extractBotMarker(text);
-    if (botText) await speak(botText);
+    // Fire-and-forget: do NOT await. The fetch must not keep the
+    // event handler alive — OMP's TUI repaints after handler return
+    // and awaiting would race the render, wiping displayed messages.
+    if (botText) speak(botText).catch(() => {});
   });
 
   // ── System prompt injection ─────────────────────────────
