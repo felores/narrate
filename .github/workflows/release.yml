@@ -40,6 +40,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
+      - name: Install deps
+        shell: bash
+        run: bun install --frozen-lockfile
+
       - name: Build native binary
         shell: bash
         run: bash scripts/build.sh
