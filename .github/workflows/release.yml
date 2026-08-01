@@ -52,8 +52,8 @@ jobs:
       - name: Rename to platform assets
         shell: bash
         run: |
-          [ -f dist/narrate ] && mv dist/narrate "dist/${{ matrix.asset }}"
-          [ -f dist/narrate-server ] && mv dist/narrate-server "dist/${{ matrix.server }}"
+          if [ -f dist/narrate ]; then mv dist/narrate "dist/${{ matrix.asset }}"; fi
+          if [ -f dist/narrate-server ]; then mv dist/narrate-server "dist/${{ matrix.server }}"; fi
 
       - name: Checksums
         shell: bash
