@@ -17,11 +17,37 @@ import {
   type ProviderHealth,
   type AudioResult,
   type VoiceInfo,
+  ProviderError,
   assertOk,
 } from "./base.ts";
 
 const VOICEBOX_URL = process.env.VOICEBOX_URL ?? "http://127.0.0.1:17493";
 const CLIENT_ID = process.env.VOICEBOX_CLIENT_ID ?? "narrate";
+
+/**
+ * voicebox replies with HTTP 200 + {"detail": "..."} for errors (unknown
+ * profile, missing engine, etc.). Returns a message string when the body
+ * carries an error, null otherwise (success is JSON without `detail`).
+ */
+async function extractVoiceboxError(response: Response): Promise<string | null> {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    const body = JSON.parse(text) as {
+      detail?: unknown;
+      error?: unknown;
+      message?: unknown;
+    };
+    const detail = body.detail ?? body.error ?? body.message;
+    if (typeof detail === "string" && detail.trim()) return detail.trim();
+    if (detail && typeof detail === "object") {
+      return JSON.stringify(detail).slice(0, 300);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 interface VoiceboxConfig {
   personality?: boolean;
@@ -155,6 +181,12 @@ export class VoiceboxProvider implements Provider {
       body: JSON.stringify(speakBody),
     });
     await assertOk(response, this.name);
+    // /speak returns 200 with {"detail": "..."} for unknown profiles —
+    // don't report success when voicebox couldn't play anything.
+    const detail = await extractVoiceboxError(response);
+    if (detail) {
+      throw new ProviderError(this.name, 200, detail);
+    }
     return { buffer: new ArrayBuffer(0), format: "mp3", delegated: true };
   }
 

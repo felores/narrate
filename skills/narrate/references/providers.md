@@ -99,6 +99,25 @@ The zero-setup default. Works everywhere, no account.
 
 ---
 
+## Fish Audio — voice models trained from your own audio
+
+- **Preview voices (browser):** https://fish.audio/models
+  (playground: https://fish.audio/tts)
+- **API key env var:** `FISH_AUDIO_API_KEY`
+- **Create key:** https://fish.audio → API Keys
+- **Voices are "models", not fixed names:** the user creates a voice model from
+  reference audio (or clones a public model). The voice id is the model id
+  (e.g. `1f07c1d4cb88455c9d5a03de429ab894`) — find them at
+  https://fish.audio/models. `narrate verify --test` also lists the user's
+  trained models via `GET /model`.
+- **Models (`model` header):** `s2.1-pro-free` (narrate default, free dev
+  tier), `s2.1-pro`, `s2-pro`, `s1`. Override via `FISH_AUDIO_MODEL` env or a
+  preset's `providerConfig.model`.
+- **narrate usage:** `narrate --provider fish --id <model-id> "..."`
+- Best for: users who want their own (or cloned) voice, free tier.
+
+---
+
 ## voicebox — local voice cloning (optional)
 
 Not a cloud provider — a local app narrate proxies to. Auto-detected on
@@ -116,4 +135,5 @@ voice cloning. See the repo README "Voicebox deep dive".
 | "cheap and easy" | **OpenAI** |
 | "free tier, other languages" | **Gemini** |
 | "Grok voices" | **xAI** |
+| "my own / cloned voice" | **Fish Audio** (or voicebox, local) |
 | "clone my own voice" | **voicebox** (see README) |

@@ -1,6 +1,6 @@
 {
   "name": "narrate",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Provider-agnostic TTS gateway and CLI for AI coding harnesses (Claude Code, OpenCode, ChatGPT Codex, Cursor, Windsurf)",
   "type": "module",
   "scripts": {

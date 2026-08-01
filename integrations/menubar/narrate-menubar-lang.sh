@@ -6,7 +6,8 @@
 #   narrate-menubar-lang.sh en
 #   narrate-menubar-lang.sh es
 #
-# Persists to ~/.config/narrate/menubar.json and refreshes the menu.
+# Persists to ~/.config/narrate/menubar.json (merging with other keys such
+# as voice_search) and refreshes the menu.
 
 set -e
 
@@ -20,6 +21,19 @@ case "$LANG_CODE" in
 esac
 
 mkdir -p "$STATE_DIR"
-printf '{"lang":"%s"}\n' "$LANG_CODE" > "$STATE_FILE"
+
+python3 - "$STATE_FILE" "$LANG_CODE" <<'PY'
+import json, sys
+
+path, lang = sys.argv[1], sys.argv[2]
+try:
+    with open(path) as f:
+        state = json.load(f)
+except Exception:
+    state = {}
+state["lang"] = lang
+with open(path, "w") as f:
+    json.dump(state, f, ensure_ascii=False)
+PY
 
 open "swiftbar://refreshallplugins" 2>/dev/null || true

@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.5.0 — 2026-08-01
+
+### Added
+- **Standalone binaries** (`scripts/build.sh`): `bun build --compile` per platform — macOS arm64/x64, Linux arm64/x64, Windows x64. A single binary replaces the bun prerequisite on every install path. `dist/` naming is platform-clean (`narrate-linux-arm64`, `narrate-server-windows-x64.exe`).
+- **GitHub Actions release pipeline** (`.github/workflows/release.yml`): on `v*` tags, a native matrix builds and attaches per-platform binaries + `SHA256SUMS.txt` to the GitHub Release (via softprops/action-gh-release).
+- **Bunless installer** (`install.sh`): `curl | bash` now downloads the prebuilt binary for the detected platform (auto-fallback to source if none exists), also fetches the source tarball to `NARRATE_DIR/src` so service installers and integrations work without bun. Overridable via `NARRATE_MODE` (`auto`/`binary`/`source`), `NARRATE_VERSION`, `NARRATE_RELEASE_URL_BASE`.
+- **Binary-mode services**: launchd and systemd installers accept `NARRATE_BIN=/path/to/narrate-server`; templates render `__PROGRAM_ARGS__` and pass `NARRATE_DIR` so compiled servers self-locate data/logs. The compiled server detects its own binary and uses `NARRATE_DIR` instead of the repo layout.
+- **Interactive `narrate setup` wizard** (`src/setup.ts`): walks through API keys (secret input, written to `~/.env` 0600 + `POST /keys`), default provider/voice, harness integrations (Claude Code, OpenCode, Pi, Codex), and service install (launchd/systemd, binary mode when available). `narrate setup --check` prints the same report non-interactively. Uses a custom stdin reader — Bun's `node:readline` drops buffered input after the first question.
+- **Fish Audio provider** (`src/providers/fish.ts`): trained voice models from your own audio, free dev tier (`s2.1-pro-free`), `listVoices()` via `GET /model`, `credits` surfaced in `/health` and `narrate verify`. Registered in CLI, MCP, `/keys`, `narrate setup`, and `verify --test`.
+- **Provider credits in `/health`**: providers can report a human-readable quota/credit summary (`credits` field); shown by `narrate verify` and the SwiftBar menu as sub-rows.
+- **Scoop Task Scheduler helper** (`packaging/scoop/install-service.ps1`): one command registers the `narrate-server` logon task (`schtasks`-backed, relative `%~dp0` shim); referenced from the manifest notes and README.
+- **Windows quickstart** in both READMEs (scoop or prebuilt binary).
+
+### Changed
+- **READMEs rewritten to lead with benefits and versatility**: "Why narrate" (voice without lock-in, speaks day one, one setup for every tool, drops into any harness, zero dependencies) and "How versatile" (7 providers × 3 interfaces × 6+ harnesses × 3 OS × 0 required keys) now sit above the quickstart. Fish Audio added throughout: provider table, API-key table, provider setup, `providerConfig` table, health example, architecture diagram, project layout, MCP enum, CLI provider list.
+- `narrate setup` added to CLI reference and install docs; precedence table's built-in default corrected to `system` (was stale `elevenlabs`).
+- `narrate verify --test` now resolves live sample voices (ElevenLabs premade lookup, Fish/Voicebox `listVoices()`) instead of hardcoded IDs.
+
+### Fixed
+- `narrate verify --test` failed with "Error: Unknown option: --test" (CLI flag parsing for subcommand flags).
+- Precedence doc/table stated `default_provider: "elevenlabs"` while the code defaults to `system` since v0.3.6.
+
 ## v0.4.0 — 2026-06-07
 
 ### Added

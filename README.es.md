@@ -22,6 +22,30 @@ Un gateway de TTS agnóstico al proveedor: un servidor, un set de llaves, la mis
 
 ---
 
+## Por qué narrate
+
+Tus agentes de IA generan texto. **narrate les da voz** — con la voz que quieras, del proveedor que ya pagas, dentro de la herramienta que uses. Lo configuras una vez, y cada harness, script y cron habla a través del mismo servidor.
+
+- **Voz sin lock-in.** ElevenLabs, OpenAI, Gemini, xAI, Fish Audio, [Voicebox](https://github.com/jamiepine/voicebox) local o la voz integrada de tu sistema operativo — todo detrás de una sola interfaz. Cambiar de proveedor es una línea, nunca código del agente.
+- **Habla desde el día uno.** Una instalación nueva habla de inmediato con la voz del sistema (macOS `say` / Linux `espeak` / Windows SAPI). Las llaves de API son opcionales — agrégalas cuando quieras calidad de estudio.
+- **Una configuración, todas las herramientas.** CLI para shells y cron, HTTP para cualquier cosa que haga `fetch`, MCP para agentes con tool calling nativo. Mismas llaves, mismas voces, mismo servidor.
+- **Entra en cualquier harness de IA.** Instaladores de un comando para Claude Code, OpenCode, Pi y Codex: voz automática en cada respuesta (convención `🤖 BOT:`), narración a demanda, cero JSON manual.
+- **Cero dependencias para correr.** Binarios precompilados para macOS, Windows y Linux — sin bun, sin git, sin Node. Un comando instala todo, incluido el auto-arranque como servicio.
+
+## Cuán versátil es
+
+| | |
+|---|---|
+| **7 proveedores** | Nube (ElevenLabs, OpenAI, Gemini, xAI, Fish Audio) + local (Voicebox, sistema) — agrega cualquier subconjunto, narrate usa lo que configures |
+| **3 interfaces** | CLI · HTTP · MCP — un solo código, tres puertas de entrada |
+| **6+ harnesses** | Instaladores de un comando para Claude Code, OpenCode, Pi y Codex; Cursor/Windsurf/Cline vía MCP; cualquier script de shell |
+| **3 sistemas operativos** | macOS (launchd), Windows (SAPI + Task Scheduler), Linux (systemd) — los mismos comandos en todos |
+| **0 llaves requeridas** | La voz del sistema funciona offline de fábrica; los proveedores premium son estrictamente aditivos |
+
+La tabla completa de proveedores está [abajo](#proveedores); la de harnesses está [aquí](#úsalo-desde-cada-harness).
+
+---
+
 ## Quickstart en 60 segundos (macOS)
 
 Escucha a narrate hablar en tres comandos, sin llaves de API ni registro:
@@ -34,6 +58,8 @@ narrate "Hello, narrate"
 
 Eso es todo. Usa la voz integrada de macOS. ¿Quieres voces con calidad de estudio? Agrega una [llave de API](#agregar-una-llave-de-api), es opcional.
 
+> **¿Windows?** `scoop bucket add narrate https://github.com/felores/scoop-narrate && scoop install narrate`, después `narrate-server` y `narrate "hello"`. O descarga los [binarios precompilados](https://github.com/felores/narrate/releases/latest) — sin scoop, sin bun.
+
 > **¿Linux?** `curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/install.sh | bash` (baja un binario precompilado, sin bun), luego `sudo apt install espeak-ng`, después `narrate-server &` y `narrate "hello"`.
 
 ---
@@ -42,6 +68,7 @@ Eso es todo. Usa la voz integrada de macOS. ¿Quieres voces con calidad de estud
 <summary><strong>Tabla de contenido</strong></summary>
 
 - [Por qué narrate](#por-qué-narrate)
+- [Cuán versátil es](#cuán-versátil-es)
 - [Agregar una llave de API](#agregar-una-llave-de-api) : para voces premium
 - [Úsalo desde tu herramienta de IA](#úsalo-desde-cada-harness) : Claude Code, Cursor, OpenCode, etc.
 - [Proveedores](#proveedores)
@@ -80,6 +107,7 @@ Opcional. La voz por defecto de macOS funciona bien para notificaciones, pero lo
 | OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | pago por uso, muy barato |
 | Google Gemini | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | tier gratis |
 | xAI | [console.x.ai](https://console.x.ai) | pago por uso |
+| Fish Audio | [fish.audio](https://fish.audio) | tier dev gratis, luego por uso |
 
 Luego agrega la(s) llave(s) a `~/.env` y cambia el proveedor por defecto:
 
@@ -100,18 +128,6 @@ narrate "Now I sound much better"
 
 ---
 
-## Por qué narrate
-
-Cada harness de coding reinventa la voz. ElevenLabs tiene una UI, OpenAI tiene una API, Cartesia tiene otra API, Voicebox tiene su propio servidor MCP, y cada agente (Claude Code, OpenCode, Pi, Cursor, Cline) tiene su propia forma de conectarse. El resultado: scripts de shell que hardcodean un proveedor, hooks que se rompen cuando cambias de agente, y ningún concepto compartido de "voz".
-
-`narrate` colapsa esa matriz:
-
-- **Un servidor**, un set de llaves de API, un set de presets de voz.
-- **Tres interfaces**: HTTP para cualquier cosa, CLI para shells, MCP para agentes que hablan el protocolo.
-- **Seis proveedores** detrás de una interfaz `Provider` uniforme, incluido un proxy a [Voicebox](https://github.com/jamiepine/voicebox) para clonación de voz totalmente local.
-- **Presets de voz** que abstraen al proveedor (`narrate --voice researcher` funciona sin importar si `researcher` es OpenAI Nova o Voicebox Morgan).
-- **Cae en cualquier harness**: scripts de hooks, plugins, MCP. Elige el que tu herramienta soporte.
-
 ## Proveedores
 
 | Proveedor | Tipo | Auth | Notas |
@@ -120,6 +136,7 @@ Cada harness de coding reinventa la voz. ElevenLabs tiene una UI, OpenAI tiene u
 | **OpenAI TTS** | Nube | `OPENAI_API_KEY` | `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer` |
 | **Google Gemini TTS** | Nube | `GEMINI_API_KEY` | Multilingüe, requiere `ffmpeg` para PCM→WAV |
 | **xAI Grok TTS** | Nube | `XAI_API_KEY` | `eve`, `ara`, `rex`, `sal`, `leo` |
+| **Fish Audio** | Nube | `FISH_AUDIO_API_KEY` | Modelos de voz entrenados desde tu audio, tier dev gratis (`s2.1-pro-free`) |
 | **[Voicebox](https://github.com/jamiepine/voicebox)** | Proxy local | ninguna | Auto-detecta en `:17493` : clonación de voz, 7 motores locales, 23 idiomas |
 | **System (`say` / `espeak` / SAPI)** | Local | ninguna | Fallback sin dependencias, funciona offline : macOS `say`, Linux `espeak`, Windows SAPI |
 
@@ -154,6 +171,14 @@ bash /tmp/narrate-install.sh
 - Si no existe binario precompilado para tu plataforma, el instalador cae automáticamente a la instalación desde fuente (`NARRATE_MODE=source` la fuerza; `NARRATE_MODE=binary` la exige; `NARRATE_VERSION=vX.Y.Z` fija una release).
 - El servidor standalone escribe sus datos y logs en `~/.local/share/narrate` (sobrescribe con `NARRATE_DIR`).
 
+Después de cualquiera de las instalaciones de arriba, corre el setup interactivo para registrar llaves, elegir tu voz por defecto, integrar tus harnesses e instalar el servicio de auto-arranque:
+
+```bash
+narrate setup
+```
+
+`narrate setup --check` imprime la misma información sin preguntar nada. Todo es opcional — narrate habla con la voz del sistema apenas el servidor esté arriba.
+
 ### Linux / macOS : instalación con curl (fuente)
 
 Requiere [bun](https://bun.sh) primero (`curl -fsSL https://bun.sh/install | bash`).
@@ -178,7 +203,13 @@ narrate-server                      # start the server
 narrate "hello from Windows"
 ```
 
-Usa Windows SAPI (`System.Speech`) de fábrica, sin necesidad de llave de API. Córrelo al iniciar sesión con Task Scheduler. Mira [`packaging/scoop/`](packaging/scoop/) para el manifest, la configuración del servicio y las voces premium.
+Usa Windows SAPI (`System.Speech`) de fábrica, sin necesidad de llave de API. Córrelo al iniciar sesión con el helper de Task Scheduler de un comando:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$(scoop prefix narrate)\install-service.ps1"
+```
+
+Mira [`packaging/scoop/`](packaging/scoop/) para el manifest, la configuración del servicio y las voces premium.
 
 **Binario precompilado** (sin scoop, sin bun):
 
@@ -395,6 +426,20 @@ Mira [`integrations/opencode/`](integrations/opencode/) para detalles, presets d
 3. IDs de voz: `eve`, `ara`, `rex`, `sal`, `leo`.
 4. Opcional: `XAI_LANGUAGE=auto` (default), `XAI_VOICE_ID=ara` para fijar la voz por defecto.
 
+### Fish Audio
+
+1. Regístrate en [fish.audio](https://fish.audio) → API Keys → crea una llave.
+2. `echo 'FISH_AUDIO_API_KEY=...' >> ~/.env`
+3. Las voces son **modelos de voz** — crea uno en [fish.audio/models](https://fish.audio/models) desde tu propio audio de referencia, o usa un modelo público. El id de voz es el id del modelo (p. ej. `1f07c1d4cb88455c9d5a03de429ab894`). `narrate verify --test` lista tus modelos entrenados vía `GET /model`.
+4. Header de modelo (calidad/latencia): `s2.1-pro-free` (default, tier gratis), `s2.1-pro`, `s2-pro`, `s1` — sobrescribe con `FISH_AUDIO_MODEL` o por preset:
+   ```json
+   "me": {
+     "provider": "fish",
+     "voice_id": "<model-id>",
+     "providerConfig": { "model": "s2.1-pro", "latency": "balanced" }
+   }
+   ```
+
 ### Voicebox (local)
 
 Mira [Voicebox a fondo](#voicebox-a-fondo). En resumen:
@@ -509,6 +554,7 @@ Mapea un nombre amigable a un triple `(provider, voice_id, options)` para cambia
                    "providerConfig": { "model": "tts-1-hd" } },
     "ara":       { "provider": "xai",        "voice_id": "ara"      },
     "kore":      { "provider": "gemini",     "voice_id": "Kore"     },
+    "me":        { "provider": "fish",       "voice_id": "<model-id>" },
     "bella":     { "provider": "voicebox",   "voice_id": "Bella"    },
     "dora":      { "provider": "voicebox",   "voice_id": "Dora"     },
     "samantha":  { "provider": "system",     "voice_id": "Samantha" }
@@ -532,6 +578,7 @@ Cada proveedor acepta opciones extra bajo `providerConfig`:
 | OpenAI | `model` (`tts-1` / `tts-1-hd`), `speed` (0.25–4.0) |
 | Gemini | `model` |
 | xAI | `language`, `sample_rate`, `bit_rate`, `codec` |
+| Fish Audio | `model` (`s2.1-pro-free`, `s2.1-pro`, `s2-pro`, `s1`), `latency` (`normal`/`balanced`/`low`) |
 | Voicebox | `language`, `instruct` (entrega en lenguaje natural de Qwen CustomVoice), `personality` (booleano), `return_audio` (usa `/generate` en vez de `/speak`) |
 | System | `rate` |
 
@@ -545,7 +592,7 @@ echo "text" | narrate [options]
 Options:
   -v, --voice NAME      Voice preset from voices.json (e.g. fred, researcher)
   -i, --id ID           Raw provider voice id (bypasses preset registry)
-  -p, --provider NAME   elevenlabs | openai | gemini | xai | voicebox | system
+  -p, --provider NAME   elevenlabs | openai | gemini | xai | fish | voicebox | system
   -l, --language LANG   Force generation language (e.g. es, en, ja, fr).
                         Useful with cross-language voices: a Kokoro Bella
                         (en-trained) speaks proper Spanish phonetics with
@@ -562,6 +609,8 @@ Options:
 Subcommands:
   verify                Health snapshot — server status, provider matrix, voices
   verify --test         Also play one sample per configured provider (1 API call each)
+  setup                 Interactive setup — API keys, default voice, harness integrations, service
+  setup --check         Non-interactive setup report (same info, asks nothing)
 
 Env:
   NARRATE_URL           Override default server URL
@@ -631,6 +680,7 @@ Snapshot del servidor y los proveedores.
     "openai": { "configured": true },
     "gemini": { "configured": true },
     "xai": { "configured": true },
+    "fish": { "configured": true, "credits": "128,000 / 500,000 chars (free)" },
     "voicebox": { "configured": true },
     "system": { "configured": true }
   }
@@ -664,7 +714,7 @@ narrate.speak({
   text: string,                  // required, max 5000
   voice?: string,                // preset name from voices.json
   voice_id?: string,             // raw provider voice id
-  provider?: "elevenlabs" | "openai" | "gemini" | "xai" | "voicebox" | "system"
+  provider?: "elevenlabs" | "openai" | "gemini" | "xai" | "fish" | "voicebox" | "system"
 }) -> "Spoken via <provider> (voice=<voice>, format=<fmt>, delegated playback)"
 ```
 
@@ -711,7 +761,7 @@ Las filas más altas ganan. narrate lee cada capa al arrancar; los cambios en ca
 | 3 | Variables de entorno `NARRATE_*` | `NARRATE_PORT`, `NARRATE_PROVIDER`, `NARRATE_VOICE`, `NARRATE_VOICES_PATH`, `NARRATE_URL` (solo CLI) |
 | 4 | `~/.claude/settings.json` (compat legacy) | `TTS_PROVIDER` y `DA_VOICE_ID`/`NARRATE_VOICE_ID` se leen por retrocompatibilidad |
 | 5 | `~/.env` | Llaves de API (`ELEVENLABS_API_KEY`, etc.) auto-cargadas si existen |
-| 6 | Defaults integrados | `port: 8888`, `default_provider: "elevenlabs"`, `default_rate: 175` |
+| 6 | Defaults integrados | `port: 8888`, `default_provider: "system"`, `default_rate: 175` |
 
 Las llaves de API vienen de `process.env` (cargadas de tu shell o auto-cargadas de `~/.env`). Nunca las pongas en `config.json` ni en `voices.json`.
 
@@ -822,8 +872,9 @@ Imprime la salud del servidor, proveedor/voz por defecto, ruta del archivo de vo
 │   ┌──────────────┬──────────────┬────────────┐             │
 │   │ ElevenLabs   │ OpenAI       │ Gemini     │  cloud      │
 │   ├──────────────┼──────────────┼────────────┤             │
-│   │ xAI          │ Voicebox     │ System     │  cloud/local│
+│   │ xAI          │ Fish         │ Voicebox   │  cloud/local│
 │   └──────────────┴──────────────┴────────────┘             │
+│   System (say/espeak/SAPI)                                 │
 │            │                                               │
 │            ▼                                               │
 │   ArrayBuffer  (or delegated=true)                         │
@@ -860,6 +911,7 @@ narrate/
 │   │   ├── openai.ts
 │   │   ├── gemini.ts
 │   │   ├── xai.ts
+│   │   ├── fish.ts
 │   │   ├── voicebox.ts
 │   │   ├── system.ts
 │   │   └── index.ts             # registry
@@ -926,7 +978,7 @@ Usa **narrate** cuando quieras un comando que cualquier harness o shell pueda ll
 | ✅ v0.3.5 | Fixes de portabilidad: `/health` expone `repo_dir`/`logs_dir`, el plugin se auto-ubica, autostart de SwiftBar en Login Items, el plist deja de hacer snapshot de `$PATH` |
 | ✅ v0.3.6 | UX de primer arranque: el proveedor por defecto es `system` para que las instalaciones nuevas funcionen sin llaves de API. README reescrito para usuarios no técnicos con un quickstart de 3 comandos arriba. |
 | ✅ v0.4.0 | Soporte Windows (provider SAPI + bucket de Scoop). Skill canónico `narrate` (setup guiado + previews de voz). Instaladores de un comando para Claude Code + Codex. Fix de inyección siempre-activa de auto-voz. Extensión de Pi. README en español. |
-| Planeado v0.5 | Releases de binario único precompilado (`bun build --compile` por plataforma) |
+| ✅ v0.5.0 | Releases de binario único precompilado (sin bun) + pipeline de release en GitHub Actions. Wizard interactivo `narrate setup`. Provider de Fish Audio (modelos de voz entrenados, tier dev gratis). Servicios launchd/systemd en modo binario. Helper de Task Scheduler para Windows. |
 | Planeado v0.5 | Más proveedores (Cartesia, Hume EVI, Azure TTS) |
 | Planeado v0.6 | Modo CLI `--direct` (omite el servidor, llama a los proveedores directo) |
 | Planeado v0.7 | TTS en streaming sobre WebSocket |

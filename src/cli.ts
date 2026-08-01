@@ -44,7 +44,7 @@ Subcommands:
 Options:
   -v, --voice NAME      Voice preset from voices.json (e.g. fred, researcher)
   -i, --id ID           Raw provider voice id (bypasses preset registry)
-  -p, --provider NAME   Provider: elevenlabs, openai, gemini, xai, voicebox, system
+  -p, --provider NAME   Provider: elevenlabs, openai, gemini, xai, fish, voicebox, system
   -l, --language LANG   Force generation language (e.g. es, en, ja, fr).
                         Useful with cross-language voices: a voicebox Kokoro
                         Bella (en-trained) speaks proper Spanish phonetics
@@ -154,7 +154,7 @@ interface HealthResponse {
   default_voice: string | null;
   voices_path: string | null;
   voices: string[];
-  providers: Record<string, { configured: boolean; reason?: string }>;
+  providers: Record<string, { configured: boolean; reason?: string; credits?: string }>;
 }
 
 async function runVerify(serverUrl: string, runTests: boolean): Promise<void> {
@@ -187,7 +187,8 @@ async function runVerify(serverUrl: string, runTests: boolean): Promise<void> {
   for (const [name, p] of Object.entries(health.providers)) {
     const icon = p.configured ? "✅" : "⚪";
     const reason = p.reason ? ` (${p.reason})` : "";
-    console.log(`  ${icon} ${name}${reason}`);
+    const credits = p.configured && p.credits ? `  — ${p.credits}` : "";
+    console.log(`  ${icon} ${name}${reason}${credits}`);
   }
 
   if (!runTests) {
@@ -204,7 +205,7 @@ async function runVerify(serverUrl: string, runTests: boolean): Promise<void> {
     if (!p.configured) continue;
     process.stdout.write(`  → ${name}... `);
     try {
-      const sampleVoice = sampleVoiceFor(name);
+      const sampleVoice = await sampleVoiceFor(name);
       const t0 = Date.now();
       const res = await fetch(`${serverUrl}/notify`, {
         method: "POST",
@@ -231,20 +232,50 @@ async function runVerify(serverUrl: string, runTests: boolean): Promise<void> {
   }
 }
 
-function sampleVoiceFor(provider: string): string {
+async function sampleVoiceFor(provider: string): Promise<string> {
   switch (provider) {
     case "elevenlabs":
-      return (
-        process.env.NARRATE_TEST_ELEVENLABS_VOICE ?? "21m00Tcm4TlvDq8ikWAM"
-      ); // Rachel (public)
+      // Free tier can't use library voices via API (402) — premade works.
+      if (process.env.NARRATE_TEST_ELEVENLABS_VOICE) return process.env.NARRATE_TEST_ELEVENLABS_VOICE;
+      try {
+        if (process.env.ELEVENLABS_API_KEY) {
+          const res = await fetch("https://api.elevenlabs.io/v1/voices", {
+            headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY },
+            signal: AbortSignal.timeout(5000),
+          });
+          if (res.ok) {
+            const voices = (await res.json()) as { voices?: { voice_id: string; category?: string }[] };
+            const premade = voices.voices?.find((v) => v.category === "premade");
+            if (premade) return premade.voice_id;
+          }
+        }
+      } catch { /* fall through to Rachel */ }
+      return "21m00Tcm4TlvDq8ikWAM"; // Rachel (public library)
     case "openai":
       return "alloy";
     case "gemini":
       return "Kore";
     case "xai":
       return "ara";
+    case "fish":
+      // Fish voices are user-created models — use the first trained one.
+      if (process.env.NARRATE_TEST_FISH_VOICE) return process.env.NARRATE_TEST_FISH_VOICE;
+      try {
+        const { FishProvider } = await import("./providers/fish.ts");
+        const voices = await new FishProvider().listVoices();
+        return voices[0]?.id ?? "default";
+      } catch {
+        return "default";
+      }
     case "voicebox":
-      return process.env.NARRATE_TEST_VOICEBOX_PROFILE ?? "default";
+      if (process.env.NARRATE_TEST_VOICEBOX_PROFILE) return process.env.NARRATE_TEST_VOICEBOX_PROFILE;
+      try {
+        const { VoiceboxProvider } = await import("./providers/voicebox.ts");
+        const voices = await new VoiceboxProvider().listVoices();
+        return voices[0]?.id ?? "default";
+      } catch {
+        return "default";
+      }
     case "system":
       return process.platform === "darwin" ? "Samantha" : "default";
     default:

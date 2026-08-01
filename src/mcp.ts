@@ -79,7 +79,7 @@ export function createMcpServer(deps: {
             "Raw provider voice id (e.g. 'Samantha' for system, 'alloy' for openai). Bypasses preset registry.",
           ),
         provider: z
-          .enum(["elevenlabs", "openai", "gemini", "xai", "voicebox", "system"])
+          .enum(["elevenlabs", "openai", "gemini", "xai", "fish", "voicebox", "system"])
           .optional()
           .describe("Provider override. Defaults to server config or preset."),
       },

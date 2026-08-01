@@ -3,7 +3,7 @@
 # <xbar.version>v0.4.0</xbar.version>
 # <xbar.author>Felo Restrepo</xbar.author>
 # <xbar.author.github>felores</xbar.author.github>
-# <xbar.desc>Text-to-speech gateway that reads AI chat responses aloud. Works with Claude Code, OpenCode, Pi, Codex and any tool you chat with, across ElevenLabs, OpenAI, Gemini, xAI and system voices.</xbar.desc>
+# <xbar.desc>Text-to-speech gateway that reads AI chat responses aloud. Works with Claude Code, OpenCode, Pi, Codex and any tool you chat with, across ElevenLabs, OpenAI, Gemini, xAI, Fish Audio and system voices.</xbar.desc>
 # <xbar.abouturl>https://github.com/felores/narrate</xbar.abouturl>
 #
 # SwiftBar plugin for the narrate TTS gateway (5s refresh; EN/ES toggle).
@@ -185,16 +185,27 @@ auto_is_default = not auto_voice
 # profiles are fetched live from the local voicebox instance.
 SAMPLES = {
     "elevenlabs": [
-        ("Rachel",   "21m00Tcm4TlvDq8ikWAM"),
-        ("Domi",     "AZnzlk1XvdvUeBnXmlld"),
-        ("Bella",    "EXAVITQu4vr4xnSDxMaL"),
-        ("Antoni",   "ErXwobaYiN019PkySvjV"),
-        ("Elli",     "MF3mGyEYCl7XYWbV9V6O"),
-        ("Josh",     "TxGEqnHWrfWFTfGW9XjX"),
-        ("Arnold",   "VR6AewLTigWG4xSOukaG"),
-        ("Adam",     "pNInz6obpgDQGcFmaJgB"),
-        ("Charlie",  "IKne3meq5aSn9XLyUdCD"),
-        ("Dorothy",  "ThT5KcBeYPX3keUQqHPh"),
+        ("Sarah",     "EXAVITQu4vr4xnSDxMaL"),
+        ("Roger",     "CwhRBWXzGAHq8TQ4Fs17"),
+        ("Laura",     "FGY2WhTYpPnrIDTdsKH5"),
+        ("Charlie",   "IKne3meq5aSn9XLyUdCD"),
+        ("George",    "JBFqnCBsd6RMkjVDRZzb"),
+        ("Callum",    "N2lVS1w4EtoT3dr4eOWO"),
+        ("River",     "SAz9YHcvj6GT2YYXdXww"),
+        ("Harry",     "SOYHLrjzK2X1ezoPC6cr"),
+        ("Liam",      "TX3LPaxmHKxFdv7VOQHJ"),
+        ("Alice",     "Xb7hH8MSUJpSbSDYk0k2"),
+        ("Matilda",   "XrExE9yKIg1WjnnlVkGX"),
+        ("Will",      "bIHbv24MWmeRgasZH58o"),
+        ("Jessica",   "cgSgspJ2msm6clMCkdW9"),
+        ("Eric",      "cjVigY5qzO86Huf0OWal"),
+        ("Bella",     "hpp4J3VqNfWAUOO0d1Us"),
+        ("Chris",     "iP95p4xoKVk53GoZ742B"),
+        ("Brian",     "nPczCjzI2devNBz1zQrb"),
+        ("Daniel",    "onwK4e9ZLuTAKqWW03F9"),
+        ("Lily",      "pFZP5JQG7iQjIQuC4Bku"),
+        ("Adam",      "pNInz6obpgDQGcFmaJgB"),
+        ("Bill",      "pqHfZKP75CvOlQylNhV4"),
     ],
     "openai": [
         ("alloy",   "alloy"),
@@ -288,7 +299,7 @@ provider_voices = {
 
 # Default voice per provider when switching providers from the menu.
 DEFAULT_VOICE = {
-    "elevenlabs": "21m00Tcm4TlvDq8ikWAM",
+    "elevenlabs": "EXAVITQu4vr4xnSDxMaL",  # Sarah — premade (library voices 402 on free tier)
     "openai": "alloy",
     "gemini": "Kore",
     "xai": "ara",
@@ -306,16 +317,111 @@ try:
         provider_voices.setdefault("voicebox", []).append({
             "label": f"{name} · {lang_tag} · {engine}",
             "voice_id": name,
+            "langs": [lang_tag] if lang_tag and lang_tag != '?' else [],
         })
     if provider_voices.get("voicebox"):
         DEFAULT_VOICE["voicebox"] = provider_voices["voicebox"][0]["voice_id"]
 except Exception:
     pass
 
-PROVIDER_ORDER = ["elevenlabs", "openai", "gemini", "xai", "voicebox", "system"]
+# Fish Audio voices are user-created models — fetch live from the API using
+# the key in ~/.env (same file the menu writes keys to). Fail silently.
+# The public model list is big (1000+) and shifts constantly, so fetch ALL
+# pages and cache them for 15 min — otherwise a previously-selected voice
+# falls out of the window and the menu shows its raw id again.
+# Note: system python's cert store often can't verify api.fish.audio, so use
+# an unverified context (read-only catalog fetch — same pragmatism as the
+# plain-HTTP voicebox profiles call above).
+try:
+    import ssl, time
+    ssl_ctx = ssl._create_unverified_context()
+    fish_cache = os.path.expanduser("~/.cache/narrate/fish-models.json")
+    with open(os.path.expanduser("~/.env")) as f:
+        fish_key = None
+        for line in f:
+            if line.startswith("FISH_AUDIO_API_KEY="):
+                fish_key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                break
+    if fish_key:
+        fish_models = []
+        try:
+            if time.time() - os.stat(fish_cache).st_mtime < 15 * 60:
+                with open(fish_cache) as f:
+                    fish_models = json.load(f)
+        except Exception:
+            pass
+        if not fish_models:
+            page = 1
+            while page <= 15:  # safety cap (~1500 models)
+                req = urllib.request.Request(
+                    f"https://api.fish.audio/model?page_size=100&page_number={page}",
+                    headers={"Authorization": f"Bearer {fish_key}"},
+                )
+                with urllib.request.urlopen(req, timeout=3, context=ssl_ctx) as resp:
+                    data = json.loads(resp.read().decode())
+                items = data.get("items", [])
+                if not items:
+                    break
+                fish_models.extend(items)
+                if not data.get("has_more"):
+                    break
+                page += 1
+            try:
+                os.makedirs(os.path.dirname(fish_cache), exist_ok=True)
+                with open(fish_cache, "w") as f:
+                    json.dump(fish_models, f)
+            except Exception:
+                pass
+        for m in sorted(fish_models, key=lambda x: x.get("title", "")):
+            if m.get("type") not in (None, "tts"):
+                continue
+            if m.get("state") not in (None, "trained"):
+                continue
+            langs = m.get("languages") or []
+            label = m.get("title", "?")
+            if langs:
+                label += f" · {', '.join(langs)}"
+            provider_voices.setdefault("fish", []).append({
+                "label": label,
+                "voice_id": m.get("_id", ""),
+                "langs": langs,
+            })
+except Exception:
+    pass
+
+# ElevenLabs: use the account's REAL voice names — the curated list goes
+# stale (ElevenLabs renames premade voices, e.g. EXAVIT... "Bella" → "Sarah").
+# Same SSL caveat as the fish fetch above. Fall back to SAMPLES.
+try:
+    import ssl
+    ssl_ctx = ssl._create_unverified_context()
+    with open(os.path.expanduser("~/.env")) as f:
+        el_key = None
+        for line in f:
+            if line.startswith("ELEVENLABS_API_KEY="):
+                el_key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                break
+    if el_key:
+        req = urllib.request.Request(
+            "https://api.elevenlabs.io/v1/voices",
+            headers={"xi-api-key": el_key},
+        )
+        with urllib.request.urlopen(req, timeout=3, context=ssl_ctx) as resp:
+            el_voices = json.loads(resp.read().decode()).get("voices", [])
+        live = [
+            {"label": v.get("name") or v["voice_id"], "voice_id": v["voice_id"]}
+            for v in el_voices
+            if v.get("voice_id")
+        ]
+        if live:
+            provider_voices["elevenlabs"] = live
+except Exception:
+    pass
+
+PROVIDER_ORDER = ["elevenlabs", "openai", "gemini", "xai", "fish", "voicebox", "system"]
 PROVIDER_NAMES = {
     "elevenlabs": "ElevenLabs", "openai": "OpenAI", "gemini": "Gemini",
-    "xai": "xAI", "voicebox": "Voicebox", "system": "System",
+    "xai": "xAI", "fish": "Fish Audio", "voicebox": "Voicebox", "system": "System",
 }
 
 # Keys that can be entered from the menu (env var name per provider).
@@ -324,6 +430,7 @@ KEY_BY_PROVIDER = {
     "openai": "OPENAI_API_KEY",
     "gemini": "GEMINI_API_KEY",
     "xai": "XAI_API_KEY",
+    "fish": "FISH_AUDIO_API_KEY",
 }
 
 def sanitize(s):
@@ -344,16 +451,29 @@ def provider_default_voice(prov, catalog):
 def check_row(attrs):
     return " checked=true" if attrs else ""
 
+def voice_display_name(voice_id, catalog):
+    """Show the voice NAME (e.g. Sarah), not the raw id (e.g. EXAVIT...) or its descriptor."""
+    if not voice_id:
+        return voice_id
+    for v in catalog:
+        if v["voice_id"] == voice_id:
+            return v["label"].split(" · ")[0].split(" - ")[0]
+    return voice_id
+
+active_catalog = voice_catalog(default_provider)
+session_provider = auto_provider if auto_provider else default_provider
+session_catalog = voice_catalog(session_provider) or active_catalog
+
 # ─── Top bar ────────────────────────────────────────────────────────────────
 print("🎙️")
 print("---")
 print(f"narrate · :{port} | color=green")
 print(f"{t['providers_configured'].format(ok=ok, total=total)} | color=#666666")
-print(f"{t['narrate_header'].format(voice=sanitize(default_voice or '(none)'))} · {provider_label(default_provider)} | color=#666666")
+print(f"{t['narrate_header'].format(voice=sanitize(voice_display_name(default_voice, active_catalog) or '(none)'))} · {provider_label(default_provider)} | color=#666666")
 if auto_is_default:
     print(f"{t['session_default']} | color=#666666")
 else:
-    print(f"{t['session_header'].format(voice=sanitize(auto_voice))} · {provider_label(auto_provider)} | color=#666666")
+    print(f"{t['session_header'].format(voice=sanitize(voice_display_name(auto_voice, session_catalog)))} · {provider_label(auto_provider)} | color=#666666")
 
 # ─── Providers (pick the active provider + API keys) ────────────────────────
 print("---")
@@ -373,6 +493,8 @@ for prov in PROVIDER_ORDER:
             if pv:
                 row += f" | bash='{config_helper}' param1='select' param2='{pv}' param3='{prov}' terminal=false refresh=false"
         print(f"{row} | color={'#666666' if is_active else '#222222'}")
+        if cfg.get('credits'):
+            print(f"----💳 {cfg['credits']} | color=#888888 size=11 font=Menlo")
         if prov in KEY_BY_PROVIDER:
             env_key = KEY_BY_PROVIDER[prov]
             print(f"----🔑 {t['change_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' terminal=false refresh=false")
@@ -393,37 +515,60 @@ for prov in PROVIDER_ORDER:
 print("---")
 print(t["voices_section"].format(provider=provider_label(default_provider)))
 
-active_catalog = voice_catalog(default_provider)
-session_provider = auto_provider if auto_provider else default_provider
-session_catalog = voice_catalog(session_provider) or active_catalog
-
-def voice_row(target, voice_id, provider, label, current):
+def voice_row(target, voice_id, provider, label, current, level=4):
     """One clickable voice row. target: narrate|auto"""
     checked = " checked=true" if current else ""
     print(
-        f"----🗣 {sanitize(label)}"
+        f"{'-' * level}🗣 {sanitize(label)}"
         f" | bash='{config_helper}' param1='{target}' param2='{voice_id}' param3='{provider}'"
         f" terminal=false refresh=false{checked}"
     )
 
+LANG_NAMES = {
+    "es": "Español", "en": "English", "zh": "中文", "ru": "Русский", "ja": "日本語",
+    "ar": "العربية", "pt": "Português", "fr": "Français", "de": "Deutsch",
+    "it": "Italiano", "ko": "한국어", "nl": "Nederlands", "hi": "हिन्दी",
+    "id": "Bahasa Indonesia", "tr": "Türkçe", "pl": "Polski", "uk": "Українська",
+    "vi": "Tiếng Việt", "th": "ไทย", "he": "עברית", "fa": "فارسی",
+    "el": "Ελληνικά", "cs": "Čeština", "sv": "Svenska", "da": "Dansk",
+    "fi": "Suomi", "no": "Norsk", "hu": "Magyar", "ro": "Română",
+}
+
+def lang_display(code):
+    return LANG_NAMES.get(code, code)
+
 def voice_list(target, catalog, current_voice, provider):
+    """Render a picker. Big multilingual catalogs are grouped into
+    per-language submenus (fish's public list is 1000+) — flat otherwise."""
     if not catalog:
         print(f"----{t['no_voices']} | color=#888888")
+        return
+    if len(catalog) > 12 and all("langs" in v for v in catalog):
+        groups = {}
+        for v in catalog:
+            langs = v.get("langs") or []
+            g = lang_display(langs[0]) if langs else "🌐"
+            groups.setdefault(g, []).append(v)
+        for g, vs in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+            print(f"----{g} ({len(vs)}) | color=#888888 size=11")
+            for v in vs:
+                voice_row(target, v["voice_id"], provider, v["label"].split(" · ")[0],
+                          v["voice_id"] == current_voice, level=6)
         return
     for v in catalog:
         voice_row(target, v["voice_id"], provider, v["label"], v["voice_id"] == current_voice)
 
 # Narrate voice
-print(f"--{t['narrate_voice'].format(voice=sanitize(default_voice or '(none)'))}")
+print(f"--{t['narrate_voice'].format(voice=sanitize(voice_display_name(default_voice, active_catalog) or '(none)'))}")
 voice_list("narrate", active_catalog, default_voice, default_provider)
 
 # Session voice
 if auto_is_default:
     print(f"--{t['session_voice_default']}")
 else:
-    print(f"--{t['session_voice_header'].format(voice=sanitize(auto_voice))}")
-print(f"----{t['use_same']} | bash='{config_helper}' param1='auto-same' terminal=false refresh=false{check_row(auto_is_default)}")
+    print(f"--{t['session_voice_header'].format(voice=sanitize(voice_display_name(auto_voice, session_catalog)))}")
 voice_list("auto", session_catalog, auto_voice, session_provider)
+print(f"----{t['use_same']} | bash='{config_helper}' param1='auto-same' terminal=false refresh=false{check_row(auto_is_default)}")
 
 # ─── Test buttons (speak with the current pair, no config change) ──────────
 print("---")

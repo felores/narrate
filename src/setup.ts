@@ -34,6 +34,7 @@ const PROVIDERS: ProviderMeta[] = [
   { name: "openai", env: "OPENAI_API_KEY", label: "OpenAI", hint: "https://platform.openai.com/api-keys" },
   { name: "gemini", env: "GEMINI_API_KEY", label: "Google Gemini", hint: "https://aistudio.google.com/apikey" },
   { name: "xai", env: "XAI_API_KEY", label: "xAI", hint: "https://console.x.ai" },
+  { name: "fish", env: "FISH_AUDIO_API_KEY", label: "Fish Audio", hint: "https://fish.audio" },
   { name: "voicebox", env: null, label: "Voicebox (local cloning)", hint: "no key — local server at 127.0.0.1:17493" },
   { name: "system", env: null, label: "System voice", hint: "no key — macOS say / Linux espeak-ng" },
 ];
