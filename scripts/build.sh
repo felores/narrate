@@ -5,6 +5,7 @@
 # Usage:
 #   bash scripts/build.sh            # native binaries only
 #   bash scripts/build.sh --all      # all platforms via cross-compile
+#   bash scripts/build.sh --target <t>  # one specific target (e.g. bun-darwin-x64)
 #
 # Output: dist/narrate{,-server}[-<os>-<arch>][.exe]
 #
@@ -23,6 +24,8 @@ mkdir -p "$DIST"
 TARGETS=()
 if [ "${1:-}" = "--all" ]; then
   TARGETS=(bun-darwin-arm64 bun-darwin-x64 bun-linux-x64 bun-linux-arm64 bun-windows-x64)
+elif [ "${1:-}" = "--target" ]; then
+  TARGETS=("${2:-}")
 fi
 
 build_one() {
@@ -43,7 +46,7 @@ build_one() {
     "$entry" --outfile "$out"
 }
 
-if [ "${1:-}" = "--all" ]; then
+if [ "${1:-}" = "--all" ] || [ "${1:-}" = "--target" ]; then
   for t in "${TARGETS[@]}"; do
     build_one src/server.ts narrate-server "$t"
     build_one src/cli.ts narrate "$t"

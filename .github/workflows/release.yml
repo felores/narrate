@@ -23,10 +23,11 @@ jobs:
             plat: linux-arm64
             asset: narrate-linux-arm64
             server: narrate-server-linux-arm64
-          - os: macos-13
+          - os: macos-latest
             plat: darwin-x64
             asset: narrate-darwin-x64
             server: narrate-server-darwin-x64
+            target: bun-darwin-x64
           - os: macos-latest
             plat: darwin-arm64
             asset: narrate-darwin-arm64
@@ -44,15 +45,15 @@ jobs:
         shell: bash
         run: bun install --frozen-lockfile
 
-      - name: Build native binary
+      - name: Build binary
         shell: bash
-        run: bash scripts/build.sh
+        run: bash scripts/build.sh${{ matrix.target && format(' --target {0}', matrix.target) || '' }}
 
       - name: Rename to platform assets
         shell: bash
         run: |
-          mv dist/narrate "dist/${{ matrix.asset }}"
-          mv dist/narrate-server "dist/${{ matrix.server }}"
+          [ -f dist/narrate ] && mv dist/narrate "dist/${{ matrix.asset }}"
+          [ -f dist/narrate-server ] && mv dist/narrate-server "dist/${{ matrix.server }}"
 
       - name: Checksums
         shell: bash
