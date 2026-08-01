@@ -44,15 +44,21 @@ mkdir "$env:USERPROFILE\.config\narrate" -Force
 ## Run the server at login (service equivalent)
 
 Windows has no `brew services`. Use **Task Scheduler** to run `narrate-server`
-at logon:
+at logon. One command (uses `install-service.ps1`, ships with the package):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$(scoop prefix narrate)\install-service.ps1"
+```
+
+Manual equivalent:
 
 ```powershell
 $action  = New-ScheduledTaskAction -Execute "narrate-server"
 $trigger = New-ScheduledTaskTrigger -AtLogOn
-Register-ScheduledTask -TaskName "narrate" -Action $action -Trigger $trigger -Description "narrate TTS server"
+Register-ScheduledTask -TaskName "narrate-server" -Action $action -Trigger $trigger -Description "narrate TTS server"
 ```
 
-Remove it with `Unregister-ScheduledTask -TaskName "narrate" -Confirm:$false`.
+Remove it with `schtasks /delete /tn narrate-server /f`.
 
 ## What `narrate.json` does
 

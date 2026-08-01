@@ -23,7 +23,8 @@
     "Then speak with:  narrate \"hello from Windows\"",
     "The system provider uses Windows SAPI (System.Speech) - no API key needed.",
     "For premium voices add keys to %USERPROFILE%\\.env (ELEVENLABS_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, XAI_API_KEY).",
-    "Run the server at login: see packaging/scoop/README.md (Task Scheduler)."
+    "Auto-start at login (one command):",
+    "  powershell -ExecutionPolicy Bypass -File \"$(scoop prefix narrate)\\install-service.ps1\""
   ],
   "checkver": "github",
   "autoupdate": {
