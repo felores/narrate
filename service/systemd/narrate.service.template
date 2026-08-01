@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=__NARRATE_DIR__
-ExecStart=__BUN_PATH__ run __NARRATE_DIR__/src/server.ts
+ExecStart=__PROGRAM_ARGS__
 Restart=on-failure
 RestartSec=5
 # systemd-only: captures pre-init startup output + crashes.

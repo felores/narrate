@@ -7,9 +7,7 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>__BUN_PATH__</string>
-        <string>run</string>
-        <string>__NARRATE_DIR__/src/server.ts</string>
+        __PROGRAM_ARGS__
     </array>
 
     <key>WorkingDirectory</key>

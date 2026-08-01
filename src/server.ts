@@ -33,7 +33,12 @@ import { createMcpFetchHandler } from "./mcp.ts";
 
 // Initialize log rotation BEFORE any other code logs. Override via
 // NARRATE_LOGS_DIR if you want logs somewhere other than <repo>/logs.
-const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+// Compiled binaries (bun build --compile, NARRATE_COMPILED=1) have no repo
+// on disk: default to ~/.local/share/narrate unless NARRATE_DIR is set.
+const isCompiled = process.env.NARRATE_COMPILED === "1";
+const repoRoot = isCompiled
+  ? process.env.NARRATE_DIR ?? join(homedir(), ".local", "share", "narrate")
+  : dirname(dirname(fileURLToPath(import.meta.url)));
 const logsDir = process.env.NARRATE_LOGS_DIR ?? join(repoRoot, "logs");
 installLogger(join(logsDir, "narrate.log"), join(logsDir, "narrate-error.log"));
 

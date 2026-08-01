@@ -34,7 +34,7 @@ narrate "Hello, narrate"
 
 Eso es todo. Usa la voz integrada de macOS. ¿Quieres voces con calidad de estudio? Agrega una [llave de API](#agregar-una-llave-de-api), es opcional.
 
-> **¿Linux?** `curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/install.sh | bash`, luego `sudo apt install espeak-ng`, después `narrate-server &` y `narrate "hello"`.
+> **¿Linux?** `curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/install.sh | bash` (baja un binario precompilado, sin bun), luego `sudo apt install espeak-ng`, después `narrate-server &` y `narrate "hello"`.
 
 ---
 
@@ -136,20 +136,40 @@ brew services start narrate          # auto-start at login
 
 Eso es todo. Bun se incluye como dependencia. Después de esto puedes correr `narrate "hello"` y lo escucharás.
 
-### Linux / macOS : instalación con curl
+### Cualquier OS : binario precompilado (sin bun, sin git)
+
+El instalador descarga un binario compilado standalone desde GitHub Releases.
+No requiere nada instalado de antemano, ni bun ni git:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/install.sh -o /tmp/narrate-install.sh
+bash /tmp/narrate-install.sh
+"$HOME/.local/share/narrate/service/launchd/install.sh" \
+  NARRATE_BIN="$HOME/.local/share/narrate/bin/narrate-server-darwin-arm64"   # macOS
+```
+
+- **Linux**: usa la línea de systemd:
+  `NARRATE_BIN=.../narrate-server-linux-x64 "$HOME/.local/share/narrate/service/systemd/install.sh"`
+- El binario queda en `~/.local/share/narrate/bin/`, wrappers en `~/.local/bin/{narrate,narrate-server}`.
+- Si no existe binario precompilado para tu plataforma, el instalador cae automáticamente a la instalación desde fuente (`NARRATE_MODE=source` la fuerza; `NARRATE_MODE=binary` la exige; `NARRATE_VERSION=vX.Y.Z` fija una release).
+- El servidor standalone escribe sus datos y logs en `~/.local/share/narrate` (sobrescribe con `NARRATE_DIR`).
+
+### Linux / macOS : instalación con curl (fuente)
 
 Requiere [bun](https://bun.sh) primero (`curl -fsSL https://bun.sh/install | bash`).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/felores/narrate/main/install.sh -o /tmp/narrate-install.sh
-bash /tmp/narrate-install.sh
+NARRATE_MODE=source bash /tmp/narrate-install.sh
 "$HOME/.local/share/narrate/service/launchd/install.sh"   # macOS
 "$HOME/.local/share/narrate/service/systemd/install.sh"   # Linux
 ```
 
 Clona en `~/.local/share/narrate`, escribe wrappers en `~/.local/bin/{narrate,narrate-server}`, y luego instala el servicio de auto-arranque. Sobrescribe rutas con `NARRATE_DIR`, `BIN_DIR`, `NARRATE_REF`.
 
-### Windows : Scoop
+### Windows : Scoop o binario
+
+**Scoop** (fuente, bun como dependencia):
 
 ```powershell
 scoop bucket add narrate https://github.com/felores/scoop-narrate
@@ -158,7 +178,18 @@ narrate-server                      # start the server
 narrate "hello from Windows"
 ```
 
-Bun se incluye como dependencia. Usa Windows SAPI (`System.Speech`) de fábrica, sin necesidad de llave de API. Córrelo al iniciar sesión con Task Scheduler. Mira [`packaging/scoop/`](packaging/scoop/) para el manifest, la configuración del servicio y las voces premium.
+Usa Windows SAPI (`System.Speech`) de fábrica, sin necesidad de llave de API. Córrelo al iniciar sesión con Task Scheduler. Mira [`packaging/scoop/`](packaging/scoop/) para el manifest, la configuración del servicio y las voces premium.
+
+**Binario precompilado** (sin scoop, sin bun):
+
+```powershell
+# descarga desde https://github.com/felores/narrate/releases/latest
+# narrate-windows-x64.exe  +  narrate-server-windows-x64.exe
+narrate-server-windows-x64.exe    # inicia el servidor
+narrate-windows-x64.exe "hello from Windows"
+```
+
+El servidor detecta automáticamente las voces SAPI de Windows, sin llave de API. Crea una entrada en Task Scheduler (al iniciar sesión) para auto-arrancarlo.
 
 ### Desarrollo : git clone
 
@@ -177,6 +208,7 @@ Una vez instalado, el repo y los scripts quedan en una de estas rutas según el 
 | Método de instalación | `$NARRATE_DIR` | Logs |
 |---|---|---|
 | Homebrew | `$(brew --prefix narrate)/libexec` | `$NARRATE_DIR/logs/narrate.log` |
+| binario precompilado | `~/.local/share/narrate` | `$NARRATE_DIR/logs/narrate.log` |
 | instalación con curl | `~/.local/share/narrate` | `$NARRATE_DIR/logs/narrate.log` |
 | git clone (dev) | donde lo hayas clonado (ej. `~/Documents/GitHub/narrate`) | `$NARRATE_DIR/logs/narrate.log` |
 
@@ -690,13 +722,17 @@ Las llaves de API vienen de `process.env` (cargadas de tu shell o auto-cargadas 
 ```bash
 brew services start narrate              # if installed via Homebrew
 "$NARRATE_DIR/service/launchd/install.sh" # if installed via curl/git
+NARRATE_BIN="$NARRATE_DIR/bin/narrate-server-darwin-arm64" \
+  "$NARRATE_DIR/service/launchd/install.sh"   # binario precompilado
 ```
 
 El instalador:
-1. Renderiza `com.narrate.server.plist` desde una plantilla (`$HOME` y `$NARRATE_DIR` sustituidos al instalar, con un `PATH` estático de `<bun_dir>:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`).
+1. Renderiza `com.narrate.server.plist` desde una plantilla (`$HOME` y `$NARRATE_DIR` sustituidos al instalar, con un `PATH` estático de `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`, más el dir de bun en modo fuente).
 2. Lo deja en `~/Library/LaunchAgents/`.
 3. Lo carga con `launchctl`.
 4. Verifica que esté corriendo.
+
+Sin `NARRATE_BIN` corre `bun run src/server.ts`; con `NARRATE_BIN` corre el binario compilado directamente (sin bun). El servidor en modo binario lee sus rutas de datos/logs de `NARRATE_DIR`.
 
 Para removerlo:
 
@@ -709,6 +745,8 @@ brew services stop narrate
 
 ```bash
 "$NARRATE_DIR/service/systemd/install.sh"
+NARRATE_BIN="$NARRATE_DIR/bin/narrate-server-linux-x64" \
+  "$NARRATE_DIR/service/systemd/install.sh"   # modo binario
 ```
 
 Lo instala como servicio de usuario (`~/.config/systemd/user/narrate.service`) y corre `systemctl --user enable --now`.
