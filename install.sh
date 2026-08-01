@@ -70,8 +70,20 @@ install_binary() {
         fi
         chmod +x "$NARRATE_DIR/bin/$name-$PLAT"
     done
-    if [ -d "$NARRATE_DIR/.git" ]; then
-        info "Preserving existing source checkout (binary updated in $NARRATE_DIR/bin)"
+    # Source assets (service installers, harness integrations, skill). Not
+    # needed to run, but needed for `narrate setup` and service installs.
+    local src_tar_url
+    if [ "$NARRATE_VERSION" = "latest" ]; then
+        src_tar_url="https://github.com/felores/narrate/archive/refs/heads/main.tar.gz"
+    else
+        src_tar_url="https://github.com/felores/narrate/archive/refs/tags/$NARRATE_VERSION.tar.gz"
+    fi
+    info "Downloading source assets (service + integrations)"
+    rm -rf "$NARRATE_DIR/src"
+    mkdir -p "$NARRATE_DIR/src"
+    if ! curl -fsSL "$src_tar_url" | tar -xz -C "$NARRATE_DIR/src" --strip-components=1 -f -; then
+        rm -rf "$NARRATE_DIR/src"
+        warn "Source assets unavailable — service installers and harness integrations won't be present"
     fi
 }
 
@@ -160,8 +172,8 @@ fi
 # ─── Summary ─────────────────────────────────────────────────────────────────
 SERVICE_HINT=""
 if [ "$MODE" = "binary" ]; then
-    SERVICE_HINT="      NARRATE_BIN=$NARRATE_DIR/bin/narrate-server-$PLAT $NARRATE_DIR/service/launchd/install.sh    # macOS
-      NARRATE_BIN=$NARRATE_DIR/bin/narrate-server-$PLAT $NARRATE_DIR/service/systemd/install.sh    # Linux"
+    SERVICE_HINT="      NARRATE_BIN=$NARRATE_DIR/bin/narrate-server-$PLAT $NARRATE_DIR/src/service/launchd/install.sh $NARRATE_DIR    # macOS
+      NARRATE_BIN=$NARRATE_DIR/bin/narrate-server-$PLAT $NARRATE_DIR/src/service/systemd/install.sh $NARRATE_DIR    # Linux"
 else
     SERVICE_HINT="      $NARRATE_DIR/service/launchd/install.sh    # macOS
       $NARRATE_DIR/service/systemd/install.sh    # Linux"
@@ -186,10 +198,15 @@ Next steps:
      Or as a background service:
 $SERVICE_HINT
 
-  3. Verify:
+  3. Run the interactive setup wizard (keys, default voice, harness
+     integrations, background service):
+        narrate setup
+     (or `narrate setup --check` for a non-interactive status report)
+
+  4. Verify:
         narrate verify
 
-  4. Speak something:
+  5. Speak something:
         narrate "Hello world"
 
 Docs: https://github.com/felores/narrate

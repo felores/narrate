@@ -15,6 +15,9 @@ StandardOutput=append:__NARRATE_DIR__/logs/launchd-stdout.log
 StandardError=append:__NARRATE_DIR__/logs/launchd-stderr.log
 Environment=HOME=__HOME__
 Environment=PATH=__PATH_VALUE__
+# Compiled binaries self-locate logs/data via NARRATE_DIR (source mode
+# ignores it — see src/server.ts compiled detection).
+Environment=NARRATE_DIR=__NARRATE_DIR__
 
 [Install]
 WantedBy=default.target

@@ -19,6 +19,10 @@
         <string>__PATH_VALUE__</string>
         <key>HOME</key>
         <string>__HOME__</string>
+        <!-- Compiled binaries self-locate logs/data via NARRATE_DIR (source
+             mode ignores it — see src/server.ts compiled detection). -->
+        <key>NARRATE_DIR</key>
+        <string>__NARRATE_DIR__</string>
     </dict>
 
     <key>RunAtLoad</key>

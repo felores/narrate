@@ -10,6 +10,7 @@
  */
 
 import { loadConfig } from "./config.ts";
+import { runSetup, runSetupCheck } from "./setup.ts";
 
 const config = loadConfig();
 
@@ -22,6 +23,7 @@ interface CliArgs {
   serverUrl: string;
   quiet: boolean;
   text: string;
+  flags: string[];
 }
 
 const HELP = `narrate - speak text via the narrate TTS gateway
@@ -35,6 +37,9 @@ Subcommands:
   verify                Print server + provider health (no API calls)
   verify --test         Same, plus smoke-test each configured provider
                         (WARNING: each cloud test consumes ~1 API call)
+  setup                 Interactive first-run wizard: keys, default voice,
+                        harness integrations, background service
+  setup --check         Non-interactive setup status report
 
 Options:
   -v, --voice NAME      Voice preset from voices.json (e.g. fred, researcher)
@@ -71,6 +76,7 @@ function parseArgs(argv: string[]): CliArgs {
     serverUrl: process.env.NARRATE_URL ?? `http://localhost:${config.port}`,
     quiet: false,
     text: "",
+    flags: [],
   };
   const rest: string[] = [];
 
@@ -84,6 +90,10 @@ function parseArgs(argv: string[]): CliArgs {
       case "-q":
       case "--quiet":
         args.quiet = true;
+        break;
+      case "--test":
+      case "--check":
+        args.flags.push(arg.slice(2));
         break;
       case "-v":
       case "--voice":
@@ -247,9 +257,14 @@ async function main() {
 
   // Subcommand: verify
   if (args.text === "verify" || args.text.startsWith("verify ")) {
-    const runTests =
-      args.text.includes("--test") || process.argv.includes("--test");
+    const runTests = args.flags.includes("test") || args.text.includes("--test");
     return runVerify(args.serverUrl, runTests);
+  }
+
+  // Subcommand: setup
+  if (args.text === "setup" || args.text.startsWith("setup ")) {
+    if (args.flags.includes("check")) return runSetupCheck();
+    return runSetup();
   }
 
   if (!args.text && !process.stdin.isTTY) {
