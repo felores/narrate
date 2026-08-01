@@ -56,6 +56,15 @@ export interface Provider {
   /** Whether this provider has the credentials/runtime it needs. */
   health(): Promise<ProviderHealth> | ProviderHealth;
 
+  /**
+   * True when this provider plays audio through its own pipeline by default
+   * (voicebox `/speak`, system `say`) instead of returning a buffer. Used by
+   * the server to serialize delegated playback so a follow-up narration
+   * doesn't cut the current one mid-word. Per-call `AudioResult.delegated`
+   * still wins for the actual playback decision.
+   */
+  readonly delegated?: boolean;
+
   /** Generate speech audio for `text` using the provider-native voice id. */
   generateSpeech(
     text: string,

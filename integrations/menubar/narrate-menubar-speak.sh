@@ -5,6 +5,7 @@
 # Two modes:
 #   $1 = preset name           (uses voices.json registry)
 #   $1 = voice id, $2 = provider (raw provider voice id, bypasses presets)
+#   $3 = optional message     (default: "Probando <voice> desde la barra de menú")
 #
 # Examples:
 #   narrate-menubar-speak.sh fred                       # preset
@@ -26,7 +27,7 @@ if [ -z "$VOICE" ]; then
     exit 1
 fi
 
-MSG="Probando ${VOICE} desde la barra de menú"
+MSG="${3:-Probando ${VOICE} desde la barra de menú}"
 
 if [ -n "$PROVIDER" ]; then
     BODY="{\"message\":\"$MSG\",\"voice_id\":\"$VOICE\",\"provider\":\"$PROVIDER\",\"voice_enabled\":true}"

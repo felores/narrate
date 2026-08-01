@@ -44,6 +44,8 @@ These are intentional. Don't "refactor" them without reading why.
 
 8. **Plist `PATH` is static, not a snapshot.** `service/launchd/install.sh` bakes `<bun_dir>:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin` into the plist. Earlier versions used `s|__PATH_VALUE__|$PATH|g` which captured the install-time shell PATH — that aged badly (frozen entries, dirs that got deleted). Don't go back to snapshotting.
 
+9. **Narration queue serializes playback.** `src/server.ts` `enqueuePlayback` guarantees one narration at a time. Voicebox's audio output **stops any playback in progress** when a new `/speak` arrives (verified in voicebox's `play_audio_to_devices` stop_flag). Without the queue, a follow-up `🤖 BOT:` auto-voice cut a long on-demand narration mid-word: `narrate_speak` returns instantly (delegated), the model keeps going, and its next message's auto-voice killed the still-playing audio. Delegated providers hold the slot for an **estimated** duration (12 chars/s + 400ms) since narrate can't observe the end of playback; responses still return immediately (fire-and-forget) so tools/Escape never block on it. `AudioResult.delegated` per call still wins — voicebox with `return_audio: true` plays via `playAudio` inside its slot.
+
 ## Voicebox provider — read this before touching it
 
 Voicebox has two concepts that look interchangeable but aren't:
@@ -62,22 +64,29 @@ Kokoro voices are multilingual at the model level — they're style vectors, not
 ## SwiftBar plugin — read before changing it
 
 - **Refresh: URL scheme, not signals.** `open "swiftbar://refreshallplugins"`. SwiftBar does not handle `pkill -USR1`. We learned this the hard way.
-- **Plugin is `cp`'d, not symlinked.** SwiftBar resolves `BASH_SOURCE` relative to the plugin location. The plugin references its helper via absolute path back to the repo (`$REPO_ROOT/integrations/menubar/narrate-menubar-speak.sh`). Symlinking the plugin breaks helper resolution.
+- **Plugin is `cp`'d, not symlinked.** SwiftBar resolves `BASH_SOURCE` relative to the plugin location. The plugin references its helpers via absolute path back to the repo (`$REPO_ROOT/integrations/menubar/narrate-menubar-*.sh`). Symlinking the plugin breaks helper resolution.
 - **Don't put `.sh` files in the SwiftBar plugin dir** other than the plugin itself. SwiftBar treats every `.sh` as a plugin and renders a stray "?" icon for anything that doesn't print menu output.
 - **Login Items registration via osascript.** `integrations/menubar/install.sh` adds SwiftBar to macOS Login Items via System Events. May silently fail if the user denied permissions — script tolerates this.
+- **Menu is a single python3 pass over `/health`** (`narrate.5s.sh`), English by default with an EN/ES toggle at the bottom (persisted in `~/.config/narrate/menubar.json`). Sections: Providers (per-provider ✅/⚪ + API key entry/removal via `POST /keys`; clicking a configured non-active provider switches the **active provider** via `select` mode of the config helper), Voces (two pickers — `narrate` and session `🤖 BOT:` — both drawing ONLY from the active provider's real voice list, no `voices.json` presets), test buttons (speak only, no config change), service, log tail. Current pair is read from `/health` (`default_provider`/`default_voice` + `auto_provider`/`auto_voice`), never from `config.json` directly — `/health` is the source of truth.
+- **One active provider, two global voices.** `default_*` = on-demand narration, `auto_*` = the `🤖 BOT:` session voice. `auto_voice: null` + `auto_provider: null` means "use same as narrate" — the menu renders that as a checked `Use same as narrate` item. Setting a voice goes through `narrate-menubar-config.sh` → `POST /config`, which persists to `~/.config/narrate/config.json` and applies in memory (no restart). Switching the active provider resets `default_voice` to that provider's default and clears the auto pair (both voices stay on the same provider).
+- **No voice presets in the menu.** The old `voices.json` preset list (fred, iris, kai, espanol…) was removed — those names were stale and didn't reflect the real voicebox profiles. The menu lists raw provider voices plus the **live** voicebox profiles from `127.0.0.1:17493/profiles` (that's where a user-added profile like `Santa` shows up).
+- **SwiftBar renders ONE clickable item per line** — the first `|` starts the item's params (see `MenuLineParameters.swift` in SwiftBar source). Two separately clickable buttons on the same row are NOT possible; the Language section at the bottom is one row per language (`🇬🇧 English` / `🇪🇸 Español`), the active one `checked=true`, and each row runs `narrate-menubar-lang.sh` which persists the choice and refreshes the menu.
+- **`POST /keys` syncs the launchd user domain.** It writes `~/.env` (0600) AND calls `launchctl setenv`/`unsetenv` for each key. Keys present only in the launchd domain (e.g. `launchctl setenv` by the user) are visible to `/health` as configured but are NOT in `~/.env` — removing them via the menu clears both, and adding a key survives server restarts via the domain. Don't drop the launchctl sync or menu-entered keys get shadowed by the domain env on restart.
+- **Pair order trap:** `/health` and `POST /config` use (provider, voice) tuples. The test buttons pass (voice, provider) as `param1`/`param2` to `narrate-menubar-speak.sh`. Unpack accordingly — this was inverted once and produced `xai ara` test calls with swapped args.
+- **Config helper modes:** `narrate VOICE PROVIDER`, `auto VOICE PROVIDER`, `auto-same` (clear session pair), `select VOICE PROVIDER` (switch active provider — also resets `default_voice` to the given voice and clears the auto pair). The menu passes the provider's default voice for `select` unless the current voice already belongs to that provider.
 
 ## OpenCode plugin — read this before changing it
 
 The plugin lives at `integrations/opencode/`. Two files (the skill is canonical,
 copied from `skills/narrate/` — see "Canonical narrate skill" below):
 
-- `narrate.js` — plugin (`~/.config/opencode/plugin/narrate.js` at install time).
+- `narrate.js` — plugin (`~/.config/opencode/plugins/narrate.js` at install time).
 - `install.sh` — copies the plugin + the canonical skill tree, manages
   `@opencode-ai/plugin` in `package.json`, and offers the AGENTS.md convention.
 
 **Plugin architecture:**
 
-- Uses `@opencode-ai/plugin` SDK. Must be `.js` not `.ts` — OpenCode's compiled binary only loads JS from `plugin/`.
+- Uses `@opencode-ai/plugin` SDK. Must be `.js` not `.ts` — OpenCode's compiled binary only loads JS from `plugins/` (plural; the old singular `plugin/` dir is silently ignored).
 - Hooks into `message.part.updated` event (fires during streaming). This carries the full text part so we can forward it to narrate incrementally. Tracks spoken part IDs in a `Set` to avoid re-speaking on subsequent updates.
 - `session.idle` hook was tested but either doesn't fire per-turn or the SDK call failed silently — do not switch back to it.
 - Exposes a custom tool `narrate_speak` via the `tool()` helper (not a plain object — zod schema parsing breaks without `tool()`).
@@ -97,13 +106,12 @@ copied from `skills/narrate/` — see "Canonical narrate skill" below):
 
 **Voice config:**
 
-- Default voice = server default (xAI's `ara`). When no custom voice is set, omit the `voice` field entirely from the POST body — sending the raw ID as a preset name fails because `ara` is not in `voices.json`.
-- Custom voice via env var: `NARRATE_OPENCODE_VOICE=<preset_name>` (any key from `voices.json`).
-- Voice presets are per-harness in `voices.json`: `{ "voices": { "opencode": { "provider": "elevenlabs", "voice_id": "..." } } }`.
+- Voices are resolved from `/health` — one `kind` per target: `session` (🤖 BOT marker) and `narrate` (on-demand `narrate_speak`). The plugin asks the server for the voice of the right kind, never guesses IDs. When the session voice is unset it falls back to the narrate voice (server-side `auto_*` null semantics).
+- Override via env var: `NARRATE_OPENCODE_VOICE=<preset_name>` (any key from `voices.json`) — wins over the server pair for the narrate kind.
 
 **Files at install destination:**
 
-- `~/.config/opencode/plugin/narrate.js`
+- `~/.config/opencode/plugins/narrate.js`
 - `~/.config/opencode/skills/narrate/SKILL.md`
 - `~/.config/opencode/package.json` (`@opencode-ai/plugin` added as dep)
 
@@ -155,6 +163,7 @@ The extension lives at `integrations/pi/`. Pi package structure:
 
 **Voice config:**
 
+- Same `/health` kind resolution as the OpenCode plugin: `serverVoice("session")` for the 🤖 BOT marker, `serverVoice("narrate")` for `narrate_speak`. Falls back to the narrate voice when the session voice is unset.
 - `NARRATE_PI_VOICE` env var (mirrors `NARRATE_OPENCODE_VOICE`).
 - Auth header: `X-Narrate-Client-Id: pi` (per-harness client ID for log filtering).
 
@@ -224,7 +233,7 @@ copy for exactly this reason).
   preview voices → write config) and on-demand narration reference.
 - `references/providers.md` holds time-sensitive external facts (voice lists,
   models, **playground URLs to preview voices**). Date-stamped; re-verify if a
-  URL 404s. Voice/model lists were verified 2026-06-06.
+  URL 404s. Voice/model lists were verified 2026-07-31.
 - Pi still bundles its own `skills/narrate/SKILL.md` because `pi install` reads
   the skill from inside the package dir. That's the one remaining duplicate;
   keep it in sync with the canonical SKILL.md or migrate Pi to copy canonical.
@@ -354,3 +363,4 @@ The user's hook setup at `~/.claude/hooks/deny_check.sh` blocks shell commands a
 - ❌ Relying only on a skill for the `🤖 BOT:` convention. Skills load on demand; auto-voice needs it in always-on context (CLAUDE.md/AGENTS.md/system prompt).
 - ❌ Per-harness skill copies. They drift — there's one canonical `skills/narrate/` that installers copy.
 - ❌ Interpolating user text into the Windows PowerShell SAPI command. Pass via `NARRATE_TEXT`/`NARRATE_VOICE` env vars to avoid injection.
+- ❌ Blaming IDE Escape for cut-off narrations. The request was already received in full by the server (it doesn't wire client aborts to providers) — the real killer was the next auto-voice `/speak` preempting voicebox playback. Fixed with the narration queue; don't "fix" this client-side.

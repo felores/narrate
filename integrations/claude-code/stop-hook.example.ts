@@ -5,15 +5,47 @@
  * Convention: assistant ends each response with `🤖 BOT: <short text>`.
  * This hook extracts that line and pipes it to `narrate`.
  *
- * Adjust MARKER_REGEX, VOICE_PRESET, and the path to `narrate` for your
- * own setup.
+ * The voice comes from the narrate server's session voice (auto_voice in
+ * config.json, changeable from the SwiftBar menu). Set NARRATE_HOOK_VOICE to
+ * a voices.json preset to force an override.
+ *
+ * Adjust MARKER_REGEX and the path to `narrate` for your own setup.
  */
 
 import { spawn } from "child_process";
 
-const MARKER_REGEX = /🤖\s*BOT:\s*(.+?)(?:\n|$)/;
+const MARKER_REGEX = /🤖\s*BOT:\s*(.+)$/;
+
+/**
+ * Extract the 🤖 BOT: text only when the marker is the FINAL line of the
+ * response — inline examples of the marker in the message body (quotes,
+ * bullets) must not trigger auto-voice.
+ */
+function extractBotMarker(message: string): string | null {
+  const lines = message.trimEnd().split("\n");
+  const match = MARKER_REGEX.exec(lines[lines.length - 1] ?? "");
+  if (!match) return null;
+  const text = match[1].trim();
+  return text || null;
+}
 const VOICE_PRESET = process.env.NARRATE_HOOK_VOICE ?? null; // e.g. "researcher"
 const NARRATE_BIN = process.env.NARRATE_BIN ?? "narrate";
+const NARRATE_URL = process.env.NARRATE_URL ?? "http://localhost:8888";
+
+/** Session voice pair from /health (auto_voice), null when unset. */
+async function sessionVoice(): Promise<{ provider: string; voice_id: string } | null> {
+  try {
+    const res = await fetch(`${NARRATE_URL}/health`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!res.ok) return null;
+    const h = await res.json();
+    if (!h.auto_voice) return null;
+    return { provider: h.auto_provider || h.default_provider, voice_id: h.auto_voice };
+  } catch {
+    return null;
+  }
+}
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -52,18 +84,22 @@ async function getLastAssistantMessage(
   return null;
 }
 
-function speak(text: string): Promise<void> {
-  return new Promise((resolve) => {
-    const args = ["--quiet"];
-    if (VOICE_PRESET) args.push("--voice", VOICE_PRESET);
-    args.push(text);
-    const proc = spawn(NARRATE_BIN, args, {
-      detached: true,
-      stdio: "ignore",
-    });
-    proc.unref();
-    resolve();
+async function speak(text: string): Promise<void> {
+  const args = ["--quiet"];
+  if (VOICE_PRESET) {
+    args.push("--voice", VOICE_PRESET);
+  } else {
+    const v = await sessionVoice();
+    if (v) {
+      args.push("--id", v.voice_id, "--provider", v.provider);
+    }
+  }
+  args.push(text);
+  const proc = spawn(NARRATE_BIN, args, {
+    detached: true,
+    stdio: "ignore",
   });
+  proc.unref();
 }
 
 async function main() {
@@ -78,11 +114,8 @@ async function main() {
   const message = await getLastAssistantMessage(payload);
   if (!message) return;
 
-  const match = MARKER_REGEX.exec(message);
-  if (!match) return; // no marker, no narration
-
-  const text = match[1].trim();
-  if (!text) return;
+  const text = extractBotMarker(message);
+  if (!text) return; // no marker, no narration
 
   await speak(text);
 }

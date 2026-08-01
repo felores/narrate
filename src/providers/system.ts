@@ -27,6 +27,7 @@ interface SystemConfig {
 export class SystemProvider implements Provider {
   readonly name = "system";
   readonly label = "System TTS (say/espeak/SAPI)";
+  readonly delegated = true;
 
   private platform = process.platform;
   private linuxCmd: "espeak-ng" | "espeak" | null = null;

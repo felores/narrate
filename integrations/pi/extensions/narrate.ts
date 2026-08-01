@@ -15,15 +15,45 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 const NARRATE_URL = process.env.NARRATE_URL ?? "http://localhost:8888";
-const NARRATE_VOICE = process.env.NARRATE_PI_VOICE ?? "";
+const VOICE_OVERRIDE = process.env.NARRATE_PI_VOICE ?? "";
 
-async function speak(text: string): Promise<void> {
+/** Fetch the server's voice pairs. kind: "narrate" (on-demand) | "session" (BOT marker). */
+async function serverVoice(
+  kind: "narrate" | "session",
+): Promise<{ provider: string; voice_id: string } | null> {
+  try {
+    const res = await fetch(`${NARRATE_URL}/health`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!res.ok) return null;
+    const h = await res.json();
+    if (kind === "session" && h.auto_voice) {
+      return { provider: h.auto_provider || h.default_provider, voice_id: h.auto_voice };
+    }
+    if (kind === "narrate" && h.default_voice) {
+      return { provider: h.default_provider, voice_id: h.default_voice };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function speak(text: string, kind: "narrate" | "session"): Promise<void> {
   if (!text) return;
   try {
     const payload: Record<string, unknown> = {
       message: text.slice(0, 500),
     };
-    if (NARRATE_VOICE) payload.voice = NARRATE_VOICE;
+    if (VOICE_OVERRIDE) {
+      payload.voice = VOICE_OVERRIDE;
+    } else {
+      const v = await serverVoice(kind);
+      if (v) {
+        payload.voice_id = v.voice_id;
+        payload.provider = v.provider;
+      }
+    }
     await fetch(`${NARRATE_URL}/notify`, {
       method: "POST",
       headers: {
@@ -37,12 +67,15 @@ async function speak(text: string): Promise<void> {
   }
 }
 
-/** Matches 🤖 BOT: <text> at end of a response */
-const MARKER_REGEX = /\u{1F916}\s*BOT:\s*(.+?)(?:\n|$)/u;
-
+/**
+ * Matches 🤖 BOT: <text> only when it is the FINAL line of the response.
+ * Not anchored this way, inline examples of the marker in the message body
+ * (quotes, bullets) trigger auto-voice and speak the wrong text.
+ */
 function extractBotMarker(text: string): string | null {
   if (!text) return null;
-  const match = MARKER_REGEX.exec(text);
+  const lines = text.trimEnd().split("\n");
+  const match = /\u{1F916}\s*BOT:\s*(.+)$/u.exec(lines[lines.length - 1] ?? "");
   if (!match) return null;
   return match[1].trim() || null;
 }
@@ -90,7 +123,7 @@ export default function (pi: ExtensionAPI) {
     // Fire-and-forget: do NOT await. The fetch must not keep the
     // event handler alive — OMP's TUI repaints after handler return
     // and awaiting would race the render, wiping displayed messages.
-    if (botText) speak(botText).catch(() => {});
+    if (botText) speak(botText, "session").catch(() => {});
   });
 
   // ── System prompt injection ─────────────────────────────
@@ -123,8 +156,8 @@ export default function (pi: ExtensionAPI) {
       }),
     }),
     async execute(_toolCallId, params) {
-      await speak(params.text);
-      const voiceInfo = NARRATE_VOICE ? ` (voice=${NARRATE_VOICE})` : "";
+      await speak(params.text, "narrate");
+      const voiceInfo = VOICE_OVERRIDE ? ` (voice=${VOICE_OVERRIDE})` : "";
       return {
         content: [{ type: "text", text: `Spoken via narrate${voiceInfo}` }],
         details: {},

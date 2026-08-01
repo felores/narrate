@@ -3,7 +3,7 @@
 # narrate → OpenCode plugin installer
 #
 # Installs:
-#   1. Plugin → ~/.config/opencode/plugin/narrate.js
+#   1. Plugin → ~/.config/opencode/plugins/narrate.js
 #   2. Skill  → ~/.config/opencode/skills/narrate/ (canonical skill, copied)
 #   3. Dependency → adds @opencode-ai/plugin to ~/.config/opencode/package.json
 #   4. AGENTS.md → 🤖 BOT: auto-voice convention (asks first)
@@ -48,7 +48,10 @@ else
   echo "→ Installing globally: $BASE_DIR"
 fi
 
-PLUGIN_DIR="$BASE_DIR/plugin"
+# OpenCode loads plugins from <config>/plugins/ (NOT "plugin" — that dir is
+# ignored). We learned this the hard way: old installs went to plugin/ and the
+# plugin silently didn't load.
+PLUGIN_DIR="$BASE_DIR/plugins"
 SKILL_DIR="$BASE_DIR/skills/narrate"
 AGENTS_MD="$BASE_DIR/AGENTS.md"
 

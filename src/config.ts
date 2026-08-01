@@ -9,7 +9,13 @@
  *   5. NARRATE_* env vars                (final overrides)
  */
 
-import { existsSync, readFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
@@ -19,6 +25,9 @@ export interface NarrateConfig {
   default_voice: string | null;
   default_rate: number;
   voices_path: string | null;
+  /** Session-end voice (🤖 BOT: marker). Falls back to the default pair when null. */
+  auto_provider: string | null;
+  auto_voice: string | null;
 }
 
 export const DEFAULTS: NarrateConfig = {
@@ -31,10 +40,28 @@ export const DEFAULTS: NarrateConfig = {
   default_voice: null,
   default_rate: 175,
   voices_path: null,
+  auto_provider: null,
+  auto_voice: null,
 };
 
 export function configDir(): string {
   return join(homedir(), ".config/narrate");
+}
+
+export function configPath(): string {
+  return join(configDir(), "config.json");
+}
+
+/**
+ * Atomically persist the full config to ~/.config/narrate/config.json.
+ * Called by POST /config so menu/CLI changes survive restarts.
+ */
+export function writeConfigFile(cfg: NarrateConfig): void {
+  const path = configPath();
+  mkdirSync(configDir(), { recursive: true });
+  const tmp = `${path}.tmp`;
+  writeFileSync(tmp, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
+  renameSync(tmp, path);
 }
 
 export function loadConfig(): NarrateConfig {

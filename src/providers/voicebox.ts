@@ -49,6 +49,7 @@ const PROFILE_CACHE_TTL_MS = 60_000;
 export class VoiceboxProvider implements Provider {
   readonly name = "voicebox";
   readonly label = "Voicebox (local)";
+  readonly delegated = true;
 
   private profileCache: Map<string, VoiceboxProfile> | null = null;
   private profileCacheAt = 0;

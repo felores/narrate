@@ -2,7 +2,7 @@
 
 Use this to help the user pick a provider and a voice. Always share the
 **preview URL** so they can hear voices before committing. Voice/model lists are
-time-sensitive — verified **2026-06-06**; if something 404s, the provider
+time-sensitive — verified **2026-07-31**; if something 404s, the provider
 changed it, so check their docs.
 
 narrate maps friendly preset names to a `{provider, voice_id/voice}` pair in
@@ -52,11 +52,9 @@ The zero-setup default. Works everywhere, no account.
   `onyx`, `sage`, `shimmer`, `verse`, `marin`, `cedar`. (`marin`/`cedar` are
   newest/best.) Note: the legacy `tts-1`/`tts-1-hd` models only support the
   smaller set — `alloy, ash, coral, echo, fable, onyx, nova, sage, shimmer`.
-- **Models:** narrate defaults to `tts-1`. Better: `gpt-4o-mini-tts` (supports
-  an `instructions` param for tone/accent) — set via the preset's
-  `providerConfig.model`. ⚠️ `gpt-4o-mini-tts` is marked "Deprecated" in
-  OpenAI's catalog as of mid-2026 with no named successor yet — flag this if the
-  user wants longevity.
+- **Models:** narrate defaults to `gpt-4o-mini-tts` (supports an `instructions`
+  param for tone/accent) — override via the preset's `providerConfig.model`.
+  Legacy `tts-1`/`tts-1-hd` only support the 9-voice subset above.
 - **narrate usage:** `narrate --provider openai --id nova "..."`
 - Best for: good-enough quality at very low cost, minimal fuss.
 
@@ -73,7 +71,8 @@ The zero-setup default. Works everywhere, no account.
   Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia,
   Sadaltager, Sulafat.
 - **Models:** `gemini-2.5-flash-preview-tts` (narrate default),
-  `gemini-2.5-pro-preview-tts`.
+  `gemini-2.5-pro-preview-tts`, `gemini-3.1-flash-tts-preview` (newest per docs,
+  verified 2026-07-31).
 - **Output:** raw PCM (s16le, 24 kHz, mono) — narrate converts to WAV, which
   **requires `ffmpeg` installed**. If audio fails on Gemini, check ffmpeg.
 - **narrate usage:** `narrate --provider gemini --id Puck "..."`
@@ -87,9 +86,12 @@ The zero-setup default. Works everywhere, no account.
   (public demo: https://x.ai/api/voice)
 - **API key env var:** `XAI_API_KEY`
 - **Create key:** https://console.x.ai (API Keys)
-- **Voices (5):** `eve` (energetic), `ara` (warm), `rex` (confident),
-  `sal` (smooth), `leo` (authoritative). narrate's xAI default is `eve`; the
-  server's overall default voice is often set to `ara`.
+- **Voices (26, all multilingual):** `ara` ♀, `eve` ♀, `iris` ♀, `carina` ♀,
+  `celeste` ♀, `luna` ♀, `ursa` ♀, `rex` ♂, `sal` ♂, `leo` ♂, `altair` ♂,
+  `atlas` ♂, `castor` ♂, `cosmo` ♂, `helios` ♂, `helix` ♂, `kepler` ♂,
+  `lumen` ♂, `lux` ♂, `naksh` ♂, `orion` ♂, `perseus` ♂, `rigel` ♂,
+  `sirius` ♂, `zagan` ♂, `zenith` ♂. Verified via `GET /v1/tts/voices`
+  2026-07-31. narrate's xAI default is `ara`.
 - **Model:** the REST endpoint (`POST /v1/tts`) takes no `model` field — the
   model is implicit. Pass `voice_id`, not a model name.
 - **narrate usage:** `narrate --provider xai --id ara "..."`

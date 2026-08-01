@@ -10,11 +10,18 @@ import {
 
 const VALID_VOICES = [
   "alloy",
+  "ash",
+  "ballad",
+  "cedar",
+  "coral",
   "echo",
   "fable",
-  "onyx",
+  "marin",
   "nova",
+  "onyx",
+  "sage",
   "shimmer",
+  "verse",
 ] as const;
 type OpenAIVoice = (typeof VALID_VOICES)[number];
 
@@ -67,7 +74,7 @@ export class OpenAIProvider implements Provider {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: cfg.model ?? "tts-1",
+        model: cfg.model ?? "gpt-4o-mini-tts",
         voice: voiceLower,
         input: text,
         response_format: format,

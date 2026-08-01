@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
+# <xbar.title>narrate</xbar.title>
+# <xbar.version>v0.4.0</xbar.version>
+# <xbar.author>Felo Restrepo</xbar.author>
+# <xbar.author.github>felores</xbar.author.github>
+# <xbar.desc>Text-to-speech gateway that reads AI chat responses aloud. Works with Claude Code, OpenCode, Pi, Codex and any tool you chat with, across ElevenLabs, OpenAI, Gemini, xAI and system voices.</xbar.desc>
+# <xbar.abouturl>https://github.com/felores/narrate</xbar.abouturl>
 #
-# SwiftBar / xbar plugin for the narrate TTS gateway.
-# Filename suffix .5s.sh = refresh every 5 seconds.
-#
-# Install via ./install.sh — symlinks into the SwiftBar plugin directory.
-#
+# SwiftBar plugin for the narrate TTS gateway (5s refresh; EN/ES toggle).
+# Install via ./install.sh — copies into the SwiftBar plugin directory.
 
 # SwiftBar runs plugins with a minimal PATH; restore enough for our tools.
 export PATH="/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:$PATH"
@@ -62,10 +65,13 @@ if [ -z "$HEALTH" ] || ! echo "$HEALTH" | grep -q '"status":"healthy"'; then
 fi
 
 # ─── Server up: render plugin via single python pass on $HEALTH env var ─────
-# The speak helper lives in the narrate repo (NOT next to this plugin) —
-# putting helper .sh files in the SwiftBar plugin dir makes SwiftBar try
-# to run them as plugins (extra "?" menu bar icon).
+# The helpers live in the narrate repo (NOT next to this plugin) — putting
+# helper .sh files in the SwiftBar plugin dir makes SwiftBar try to run them
+# as plugins (extra "?" menu bar icon).
 SPEAK_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-speak.sh"
+CONFIG_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-config.sh"
+KEY_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-key.sh"
+LANG_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-lang.sh"
 
 HEALTH="$HEALTH" \
 NARRATE_URL="$NARRATE_URL" \
@@ -73,8 +79,11 @@ NARRATE_LOG="$NARRATE_LOG" \
 PLIST="$PLIST" \
 REPO_ROOT="$REPO_ROOT" \
 SPEAK_HELPER="$SPEAK_HELPER" \
+CONFIG_HELPER="$CONFIG_HELPER" \
+KEY_HELPER="$KEY_HELPER" \
+LANG_HELPER="$LANG_HELPER" \
 python3 - <<'PY'
-import os, json, subprocess, shlex
+import os, json, shlex, urllib.request
 
 health = json.loads(os.environ['HEALTH'])
 url = os.environ['NARRATE_URL']
@@ -82,44 +91,100 @@ log_path = os.environ['NARRATE_LOG']
 plist = os.environ['PLIST']
 repo = os.environ['REPO_ROOT']
 speak_helper = os.environ['SPEAK_HELPER']
+config_helper = os.environ['CONFIG_HELPER']
+key_helper = os.environ['KEY_HELPER']
+lang_helper = os.environ['LANG_HELPER']
+
+# ─── Language (en default; toggle at bottom of the menu) ────────────────────
+lang = "en"
+try:
+    with open(os.path.expanduser("~/.config/narrate/menubar.json")) as f:
+        lang = json.load(f).get("lang", "en")
+except Exception:
+    pass
+
+T = {
+    "en": {
+        "providers_configured": "providers: {ok}/{total} configured",
+        "narrate_header": "🎤 narrate: {voice}",
+        "session_default": "🔊 session: = narrate",
+        "session_header": "🔊 session: {voice}",
+        "providers_section": "Providers",
+        "select_provider": "Select provider",
+        "change_key": "Change API key",
+        "remove_key": "Remove API key",
+        "add_key": "Add API key",
+        "install_voicebox": "Install / start voicebox",
+        "retry": "Retry",
+        "voices_section": "Voices · {provider}",
+        "narrate_voice": "🎤 Narrate voice: {voice}",
+        "session_voice_default": "🔊 Session voice (🤖 BOT): = narrate",
+        "session_voice_header": "🔊 Session voice (🤖 BOT): {voice}",
+        "use_same": "Use same as narrate",
+        "no_voices": "No voices available — is the provider running?",
+        "test_narrate": "▶ Test narrate voice",
+        "test_narrate_msg": "This is the narrate voice.",
+        "test_session": "▶ Test session voice",
+        "test_session_msg": "This is the session voice.",
+        "service_section": "Service",
+        "restart": "Restart server",
+        "stop": "Stop server",
+        "view_log": "View narrate.log",
+        "tail_log": "Tail log in Terminal",
+        "recent_log": "Recent log",
+        "open_repo": "Open repo",
+        "language_section": "Language",
+    },
+    "es": {
+        "providers_configured": "proveedores: {ok}/{total} configurados",
+        "narrate_header": "🎤 narrate: {voice}",
+        "session_default": "🔊 sesión: = narrate",
+        "session_header": "🔊 sesión: {voice}",
+        "providers_section": "Proveedores",
+        "select_provider": "Elegir proveedor",
+        "change_key": "Cambiar API key",
+        "remove_key": "Quitar API key",
+        "add_key": "Añadir API key",
+        "install_voicebox": "Instalar / iniciar voicebox",
+        "retry": "Reintentar",
+        "voices_section": "Voces · {provider}",
+        "narrate_voice": "🎤 Voz narrate: {voice}",
+        "session_voice_default": "🔊 Voz de sesión (🤖 BOT): = narrate",
+        "session_voice_header": "🔊 Voz de sesión (🤖 BOT): {voice}",
+        "use_same": "Usar la misma de narrate",
+        "no_voices": "No hay voces — ¿está el proveedor activo?",
+        "test_narrate": "▶ Probar voz narrate",
+        "test_narrate_msg": "Esta es la voz de narrate.",
+        "test_session": "▶ Probar voz de sesión",
+        "test_session_msg": "Esta es la voz de sesión.",
+        "service_section": "Servicio",
+        "restart": "Reiniciar servidor",
+        "stop": "Detener servidor",
+        "view_log": "Ver narrate.log",
+        "tail_log": "Abrir log en Terminal",
+        "recent_log": "Registro reciente",
+        "open_repo": "Abrir repo",
+        "language_section": "Idioma",
+    },
+}
+t = T[lang]
 
 port = health.get('port', '?')
-default_provider = health.get('default_provider', '?')
-default_voice = health.get('default_voice') or '(none)'
+default_provider = health.get('default_provider', 'system')
+default_voice = health.get('default_voice') or ''
+auto_provider = health.get('auto_provider') or default_provider
+auto_voice = health.get('auto_voice') or ''
 providers = health.get('providers', {})
-voices = health.get('voices', [])
 ok = sum(1 for v in providers.values() if v.get('configured'))
 total = len(providers)
 
-# Top bar (icon + tooltip-ish summary)
-print("🎙️")
-print("---")
-print(f"narrate · :{port} | color=green")
-print(f"providers: {ok}/{total} configured | color=#666666")
-print(f"default: {default_provider} · {default_voice} | color=#666666")
-print(f"presets: {len(voices)} | color=#666666")
+auto_is_default = not auto_voice
 
-# Provider matrix
-print("---")
-print("Providers")
-for name, p in providers.items():
-    icon = '✅' if p.get('configured') else '⚪'
-    reason = p.get('reason')
-    extra = f"  ({reason[:40]}...)" if reason and not p.get('configured') else ""
-    print(f"--{icon} {name}{extra} | color=#888888")
-
-# Quick speak — first 8 presets from voices.json.
-print("---")
-print("Quick speak (voices.json presets)")
-for v in voices[:8]:
-    print(f"--🗣 {v} | bash='{speak_helper}' param1='{v}' terminal=false refresh=false")
-
-# Sample voices — hardcoded curated set per provider, click → speak via that
-# provider's raw voice id. Lets you A/B different providers from the menu
-# without editing voices.json. No server-side processing added.
+# ─── Voice catalogs ─────────────────────────────────────────────────────────
+# Raw provider voices (curated, matches the server's own lists). Voicebox
+# profiles are fetched live from the local voicebox instance.
 SAMPLES = {
     "elevenlabs": [
-        # Public stock voices that ship with every ElevenLabs account
         ("Rachel",   "21m00Tcm4TlvDq8ikWAM"),
         ("Domi",     "AZnzlk1XvdvUeBnXmlld"),
         ("Bella",    "EXAVITQu4vr4xnSDxMaL"),
@@ -133,28 +198,80 @@ SAMPLES = {
     ],
     "openai": [
         ("alloy",   "alloy"),
+        ("ash",     "ash"),
+        ("ballad",  "ballad"),
+        ("cedar",   "cedar"),
+        ("coral",   "coral"),
         ("echo",    "echo"),
         ("fable",   "fable"),
-        ("onyx",    "onyx"),
+        ("marin",   "marin"),
         ("nova",    "nova"),
+        ("onyx",    "onyx"),
+        ("sage",    "sage"),
         ("shimmer", "shimmer"),
+        ("verse",   "verse"),
     ],
     "gemini": [
-        ("Kore",    "Kore"),
-        ("Puck",    "Puck"),
-        ("Charon",  "Charon"),
-        ("Fenrir",  "Fenrir"),
-        ("Aoede",   "Aoede"),
+        ("Kore · firm",              "Kore"),
+        ("Puck · upbeat",            "Puck"),
+        ("Charon · informative",     "Charon"),
+        ("Fenrir · excitable",       "Fenrir"),
+        ("Aoede · breezy",           "Aoede"),
+        ("Zephyr · bright",          "Zephyr"),
+        ("Leda · youthful",          "Leda"),
+        ("Orus · firm",              "Orus"),
+        ("Callirrhoe · easy-going",  "Callirrhoe"),
+        ("Autonoe · bright",         "Autonoe"),
+        ("Enceladus · breathy",      "Enceladus"),
+        ("Iapetus · clear",          "Iapetus"),
+        ("Umbriel · easy-going",     "Umbriel"),
+        ("Algieba · smooth",         "Algieba"),
+        ("Despina · smooth",         "Despina"),
+        ("Erinome · clear",          "Erinome"),
+        ("Algenib · gravelly",       "Algenib"),
+        ("Rasalgethi · informative", "Rasalgethi"),
+        ("Laomedeia · upbeat",       "Laomedeia"),
+        ("Achernar · soft",          "Achernar"),
+        ("Alnilam · firm",           "Alnilam"),
+        ("Schedar · even",           "Schedar"),
+        ("Gacrux · mature",          "Gacrux"),
+        ("Pulcherrima · forward",    "Pulcherrima"),
+        ("Achird · friendly",        "Achird"),
+        ("Zubenelgenubi · casual",   "Zubenelgenubi"),
+        ("Vindemiatrix · gentle",    "Vindemiatrix"),
+        ("Sadachbia · lively",       "Sadachbia"),
+        ("Sadaltager · knowledgeable", "Sadaltager"),
+        ("Sulafat · warm",           "Sulafat"),
     ],
     "xai": [
-        ("eve",     "eve"),
-        ("ara",     "ara"),
-        ("rex",     "rex"),
-        ("sal",     "sal"),
-        ("leo",     "leo"),
+        ("Ara ♀",     "ara"),
+        ("Eve ♀",     "eve"),
+        ("Iris ♀",    "iris"),
+        ("Carina ♀",  "carina"),
+        ("Celeste ♀", "celeste"),
+        ("Luna ♀",    "luna"),
+        ("Ursa ♀",    "ursa"),
+        ("Rex ♂",     "rex"),
+        ("Sal ♂",     "sal"),
+        ("Leo ♂",     "leo"),
+        ("Altair ♂",  "altair"),
+        ("Atlas ♂",   "atlas"),
+        ("Castor ♂",  "castor"),
+        ("Cosmo ♂",   "cosmo"),
+        ("Helios ♂",  "helios"),
+        ("Helix ♂",   "helix"),
+        ("Kepler ♂",  "kepler"),
+        ("Lumen ♂",   "lumen"),
+        ("Lux ♂",     "lux"),
+        ("Naksh ♂",   "naksh"),
+        ("Orion ♂",   "orion"),
+        ("Perseus ♂", "perseus"),
+        ("Rigel ♂",   "rigel"),
+        ("Sirius ♂",  "sirius"),
+        ("Zagan ♂",   "zagan"),
+        ("Zenith ♂",  "zenith"),
     ],
     "system": [
-        # Common macOS voices that ship by default; user may have more
         ("Samantha (en-US f)",       "Samantha"),
         ("Daniel (en-GB m)",         "Daniel"),
         ("Karen (en-AU f)",          "Karen"),
@@ -164,82 +281,184 @@ SAMPLES = {
     ],
 }
 
-print("---")
-print("Sample voices by provider")
-for prov_name, voice_list in SAMPLES.items():
-    cfg = providers.get(prov_name, {})
-    icon = '✅' if cfg.get('configured') else '⚪'
-    state = '' if cfg.get('configured') else ' (not configured)'
-    print(f"--{icon} {prov_name}{state}")
-    for label, voice_id in voice_list:
-        if not cfg.get('configured'):
-            # Show but greyed out
-            print(f"----🗣 {label} | color=#888888 disabled=true")
-        else:
-            print(
-                f"----🗣 {label} | "
-                f"bash='{speak_helper}' "
-                f"param1='{voice_id}' "
-                f"param2='{prov_name}' "
-                f"terminal=false refresh=false"
-            )
+provider_voices = {
+    prov: [{"label": lbl, "voice_id": vid} for lbl, vid in lst]
+    for prov, lst in SAMPLES.items()
+}
 
-# Voicebox profiles — dynamic, since user creates these (Bella, Dora, Ryan...)
-# This is a localhost call (~5 ms), no remote API.
-import urllib.request
+# Default voice per provider when switching providers from the menu.
+DEFAULT_VOICE = {
+    "elevenlabs": "21m00Tcm4TlvDq8ikWAM",
+    "openai": "alloy",
+    "gemini": "Kore",
+    "xai": "ara",
+    "system": "Samantha",
+}
+
+# Voicebox profiles (localhost /profiles, ~5ms). Fail silently.
 try:
-    with urllib.request.urlopen(f"{url}/voices", timeout=1) as resp:
-        # Just in case voicebox itself has a /profiles, query it directly:
-        pass
+    with urllib.request.urlopen("http://127.0.0.1:17493/profiles", timeout=1) as resp:
+        vb_profiles = json.loads(resp.read().decode())
+    for p in sorted(vb_profiles, key=lambda x: x.get('name', '')):
+        name = p.get('name', '?')
+        lang_tag = p.get('language', '?')
+        engine = p.get('preset_engine') or 'cloned'
+        provider_voices.setdefault("voicebox", []).append({
+            "label": f"{name} · {lang_tag} · {engine}",
+            "voice_id": name,
+        })
+    if provider_voices.get("voicebox"):
+        DEFAULT_VOICE["voicebox"] = provider_voices["voicebox"][0]["voice_id"]
 except Exception:
     pass
 
-# Better: hit voicebox /profiles directly to list user's actual voicebox voices
-try:
-    vb_url = "http://127.0.0.1:17493/profiles"
-    with urllib.request.urlopen(vb_url, timeout=1) as resp:
-        vb_profiles = json.loads(resp.read().decode())
-    if vb_profiles and providers.get('voicebox', {}).get('configured'):
-        print("--✅ voicebox profiles (your local voices)")
-        for p in sorted(vb_profiles, key=lambda x: x.get('name', '')):
-            name = p.get('name', '?')
-            lang = p.get('language', '?')
-            engine = p.get('preset_engine') or 'cloned'
-            label = f"{name} · {lang} · {engine}"
-            print(
-                f"----🗣 {label} | "
-                f"bash='{speak_helper}' "
-                f"param1='{name}' "
-                f"param2='voicebox' "
-                f"terminal=false refresh=false"
-            )
-except Exception as e:
-    if providers.get('voicebox', {}).get('configured'):
-        print(f"--⚠ voicebox profiles unreachable | color=#888888")
+PROVIDER_ORDER = ["elevenlabs", "openai", "gemini", "xai", "voicebox", "system"]
+PROVIDER_NAMES = {
+    "elevenlabs": "ElevenLabs", "openai": "OpenAI", "gemini": "Gemini",
+    "xai": "xAI", "voicebox": "Voicebox", "system": "System",
+}
 
-# Service control
+# Keys that can be entered from the menu (env var name per provider).
+KEY_BY_PROVIDER = {
+    "elevenlabs": "ELEVENLABS_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "xai": "XAI_API_KEY",
+}
+
+def sanitize(s):
+    return str(s).replace("|", "-").strip() or "?"
+
+def provider_label(prov):
+    return PROVIDER_NAMES.get(prov, prov)
+
+def voice_catalog(prov):
+    return provider_voices.get(prov, [])
+
+def provider_default_voice(prov, catalog):
+    """Voice to use when switching to this provider: keep current if valid."""
+    if default_voice and any(v["voice_id"] == default_voice for v in catalog):
+        return default_voice
+    return DEFAULT_VOICE.get(prov, catalog[0]["voice_id"] if catalog else "")
+
+def check_row(attrs):
+    return " checked=true" if attrs else ""
+
+# ─── Top bar ────────────────────────────────────────────────────────────────
+print("🎙️")
 print("---")
-print("Service")
+print(f"narrate · :{port} | color=green")
+print(f"{t['providers_configured'].format(ok=ok, total=total)} | color=#666666")
+print(f"{t['narrate_header'].format(voice=sanitize(default_voice or '(none)'))} · {provider_label(default_provider)} | color=#666666")
+if auto_is_default:
+    print(f"{t['session_default']} | color=#666666")
+else:
+    print(f"{t['session_header'].format(voice=sanitize(auto_voice))} · {provider_label(auto_provider)} | color=#666666")
+
+# ─── Providers (pick the active provider + API keys) ────────────────────────
+print("---")
+print(t["providers_section"])
+for prov in PROVIDER_ORDER:
+    cfg = providers.get(prov, {})
+    is_active = prov == default_provider
+    name = provider_label(prov)
+    if cfg.get('configured'):
+        mark = "✅" if is_active else "✅"
+        row = f"--{mark} {name}"
+        if is_active:
+            row += " (active)"
+        else:
+            catalog = voice_catalog(prov)
+            pv = provider_default_voice(prov, catalog)
+            if pv:
+                row += f" | bash='{config_helper}' param1='select' param2='{pv}' param3='{prov}' terminal=false refresh=false"
+        print(f"{row} | color={'#666666' if is_active else '#222222'}")
+        if prov in KEY_BY_PROVIDER:
+            env_key = KEY_BY_PROVIDER[prov]
+            print(f"----🔑 {t['change_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' terminal=false refresh=false")
+            print(f"----🗑 {t['remove_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' param3='remove' terminal=false refresh=false")
+    else:
+        row = f"--⚪ {name}"
+        reason = cfg.get('reason')
+        extra = f" ({reason[:40]}...)" if reason else ""
+        print(f"{row}{extra} | color=#888888")
+        if prov == "voicebox":
+            print(f"----📖 {t['install_voicebox']} | bash='/usr/bin/open' param1='https://github.com/jamiepine/voicebox' terminal=false")
+            print(f"----🔄 {t['retry']} | refresh=true")
+        elif prov in KEY_BY_PROVIDER:
+            env_key = KEY_BY_PROVIDER[prov]
+            print(f"----🔑 {t['add_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' terminal=false refresh=false")
+
+# ─── Voices (both pickers draw from the ACTIVE provider's list) ─────────────
+print("---")
+print(t["voices_section"].format(provider=provider_label(default_provider)))
+
+active_catalog = voice_catalog(default_provider)
+session_provider = auto_provider if auto_provider else default_provider
+session_catalog = voice_catalog(session_provider) or active_catalog
+
+def voice_row(target, voice_id, provider, label, current):
+    """One clickable voice row. target: narrate|auto"""
+    checked = " checked=true" if current else ""
+    print(
+        f"----🗣 {sanitize(label)}"
+        f" | bash='{config_helper}' param1='{target}' param2='{voice_id}' param3='{provider}'"
+        f" terminal=false refresh=false{checked}"
+    )
+
+def voice_list(target, catalog, current_voice, provider):
+    if not catalog:
+        print(f"----{t['no_voices']} | color=#888888")
+        return
+    for v in catalog:
+        voice_row(target, v["voice_id"], provider, v["label"], v["voice_id"] == current_voice)
+
+# Narrate voice
+print(f"--{t['narrate_voice'].format(voice=sanitize(default_voice or '(none)'))}")
+voice_list("narrate", active_catalog, default_voice, default_provider)
+
+# Session voice
+if auto_is_default:
+    print(f"--{t['session_voice_default']}")
+else:
+    print(f"--{t['session_voice_header'].format(voice=sanitize(auto_voice))}")
+print(f"----{t['use_same']} | bash='{config_helper}' param1='auto-same' terminal=false refresh=false{check_row(auto_is_default)}")
+voice_list("auto", session_catalog, auto_voice, session_provider)
+
+# ─── Test buttons (speak with the current pair, no config change) ──────────
+print("---")
+if default_voice:
+    print(f"--{t['test_narrate']} | bash='{speak_helper}' param1='{default_voice}' param2='{default_provider}' param3='{t['test_narrate_msg']}' terminal=false refresh=false")
+if auto_voice:
+    print(f"--{t['test_session']} | bash='{speak_helper}' param1='{auto_voice}' param2='{auto_provider}' param3='{t['test_session_msg']}' terminal=false refresh=false")
+
+# ─── Service control ───────────────────────────────────────────────────────
+print("---")
+print(t["service_section"])
 restart = f"launchctl unload '{plist}' 2>/dev/null; sleep 1; launchctl load '{plist}'"
-print(f"--Restart server | bash='/bin/bash' param1='-c' param2={shlex.quote(restart)} terminal=false refresh=true")
-print(f"--Stop server | bash='launchctl' param1='unload' param2={plist} terminal=false refresh=true")
-print(f"--View narrate.log | bash='/bin/bash' param1='-c' param2=\"open -a Console.app '{log_path}'\" terminal=false")
-print(f"--Tail log in Terminal | bash='/usr/bin/open' param1='-a' param2='Terminal' param3='{log_path}' terminal=false")
+print(f"--{t['restart']} | bash='/bin/bash' param1='-c' param2={shlex.quote(restart)} terminal=false refresh=true")
+print(f"--{t['stop']} | bash='launchctl' param1='unload' param2={plist} terminal=false refresh=true")
+print(f"--{t['view_log']} | bash='/bin/bash' param1='-c' param2=\"open -a Console.app '{log_path}'\" terminal=false")
+print(f"--{t['tail_log']} | bash='/usr/bin/open' param1='-a' param2='Terminal' param3='{log_path}' terminal=false")
 
-# Footer
+# ─── Recent log lines ──────────────────────────────────────────────────────
+try:
+    lines = open(log_path, errors="replace").read().splitlines()[-3:]
+    if lines:
+        print("---")
+        print(t["recent_log"])
+        for line in lines:
+            short = line[:72]
+            print(f"-- {short} | color=#888888 size=10 font=Menlo")
+except Exception:
+    pass
+
+# ─── Footer + language (one row per language; active one checked) ──────────
+# The lang helper writes the choice and refreshes the menu via the URL scheme.
 print("---")
-print("Open repo | href=https://github.com/felores/narrate")
-verify_cmd = f"bun run {repo}/src/cli.ts verify"
-print(f"narrate verify | bash='/bin/bash' param1='-c' param2={shlex.quote(verify_cmd)} terminal=true")
-print("Refresh | refresh=true")
+print(t["open_repo"] + " | href=https://github.com/felores/narrate")
+print("---")
+print(t["language_section"])
+print(f"--🇬🇧 English | bash='{lang_helper}' param1='en' terminal=false refresh=false{check_row(lang == 'en')}")
+print(f"--🇪🇸 Español | bash='{lang_helper}' param1='es' terminal=false refresh=false{check_row(lang == 'es')}")
 PY
-
-# ─── Recent log lines (tail 3) — bash because python3 already exited ────────
-if [ -f "$NARRATE_LOG" ]; then
-    echo "---"
-    echo "Recent log"
-    tail -3 "$NARRATE_LOG" 2>/dev/null | while IFS= read -r line; do
-        short=$(echo "$line" | cut -c1-72)
-        printf -- '-- %s | color=#888888 size=10 font=Menlo\n' "$short"
-    done
-fi
