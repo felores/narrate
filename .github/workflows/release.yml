@@ -55,22 +55,42 @@ jobs:
           if [ -f dist/narrate ]; then mv dist/narrate "dist/${{ matrix.asset }}"; fi
           if [ -f dist/narrate-server ]; then mv dist/narrate-server "dist/${{ matrix.server }}"; fi
 
-      - name: Checksums
-        shell: bash
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/narrate*
+          generate_release_notes: true
+
+  finalize:
+    name: finalize
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          gh release download "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern 'narrate*' --clobber
+
+      - name: Regenerate full SHA256SUMS.txt
         run: |
           python3 - <<'PY'
           import hashlib, os
           lines = []
           for f in sorted(os.listdir("dist")):
               p = os.path.join("dist", f)
-              if os.path.isfile(p):
+              if os.path.isfile(p) and f != "SHA256SUMS.txt":
                   h = hashlib.sha256(open(p, "rb").read()).hexdigest()
                   lines.append(f"{h}  {f}")
           open("dist/SHA256SUMS.txt", "w").write("\n".join(lines) + "\n")
           PY
 
-      - name: Attach to release
+      - name: Attach SHA256SUMS.txt
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
-          generate_release_notes: true
+          files: dist/SHA256SUMS.txt
