@@ -36,12 +36,10 @@ build_one() {
   [ "${target#*windows*}" != "$target" ] && out="$out.exe"
 
   echo "→ building $out"
-  local target_arg=()
-  [ -n "$target" ] && target_arg=(--target "$target")
-  "$BUN" build --compile \
-    --minify \
-    --define 'process.env.NARRATE_COMPILED="1"' \
-    "${target_arg[@]}" \
+  local args=(--compile --minify --define 'process.env.NARRATE_COMPILED="1"')
+  [ -n "$target" ] && args+=(--target "$target")
+  "$BUN" build \
+    "${args[@]}" \
     "$entry" --outfile "$out"
 }
 
