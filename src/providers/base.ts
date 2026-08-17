@@ -44,8 +44,6 @@ export interface VoiceInfo {
 export interface ProviderHealth {
   configured: boolean;
   reason?: string;
-  /** Optional human-readable quota/credit summary, e.g. "1,234 / 10,000 chars (free)". */
-  credits?: string;
 }
 
 export interface Provider {

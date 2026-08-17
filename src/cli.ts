@@ -154,7 +154,7 @@ interface HealthResponse {
   default_voice: string | null;
   voices_path: string | null;
   voices: string[];
-  providers: Record<string, { configured: boolean; reason?: string; credits?: string }>;
+  providers: Record<string, { configured: boolean; reason?: string }>;
 }
 
 async function runVerify(serverUrl: string, runTests: boolean): Promise<void> {
@@ -187,8 +187,7 @@ async function runVerify(serverUrl: string, runTests: boolean): Promise<void> {
   for (const [name, p] of Object.entries(health.providers)) {
     const icon = p.configured ? "✅" : "⚪";
     const reason = p.reason ? ` (${p.reason})` : "";
-    const credits = p.configured && p.credits ? `  — ${p.credits}` : "";
-    console.log(`  ${icon} ${name}${reason}${credits}`);
+    console.log(`  ${icon} ${name}${reason}`);
   }
 
   if (!runTests) {

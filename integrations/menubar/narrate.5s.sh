@@ -72,6 +72,7 @@ SPEAK_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-speak.sh"
 CONFIG_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-config.sh"
 KEY_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-key.sh"
 LANG_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-lang.sh"
+UPDATE_HELPER="$REPO_ROOT/integrations/menubar/narrate-menubar-update.sh"
 
 HEALTH="$HEALTH" \
 NARRATE_URL="$NARRATE_URL" \
@@ -82,6 +83,7 @@ SPEAK_HELPER="$SPEAK_HELPER" \
 CONFIG_HELPER="$CONFIG_HELPER" \
 KEY_HELPER="$KEY_HELPER" \
 LANG_HELPER="$LANG_HELPER" \
+UPDATE_HELPER="$UPDATE_HELPER" \
 python3 - <<'PY'
 import os, json, shlex, urllib.request
 
@@ -94,6 +96,7 @@ speak_helper = os.environ['SPEAK_HELPER']
 config_helper = os.environ['CONFIG_HELPER']
 key_helper = os.environ['KEY_HELPER']
 lang_helper = os.environ['LANG_HELPER']
+update_helper = os.environ['UPDATE_HELPER']
 
 # ─── Language (en default; toggle at bottom of the menu) ────────────────────
 lang = "en"
@@ -131,6 +134,7 @@ T = {
         "stop": "Stop server",
         "view_log": "View narrate.log",
         "tail_log": "Tail log in Terminal",
+        "update": "Update narrate",
         "recent_log": "Recent log",
         "open_repo": "Open repo",
         "language_section": "Language",
@@ -162,6 +166,7 @@ T = {
         "stop": "Detener servidor",
         "view_log": "Ver narrate.log",
         "tail_log": "Abrir log en Terminal",
+        "update": "Actualizar narrate",
         "recent_log": "Registro reciente",
         "open_repo": "Abrir repo",
         "language_section": "Idioma",
@@ -493,8 +498,6 @@ for prov in PROVIDER_ORDER:
             if pv:
                 row += f" | bash='{config_helper}' param1='select' param2='{pv}' param3='{prov}' terminal=false refresh=false"
         print(f"{row} | color={'#666666' if is_active else '#222222'}")
-        if cfg.get('credits'):
-            print(f"----💳 {cfg['credits']} | color=#888888 size=11 font=Menlo")
         if prov in KEY_BY_PROVIDER:
             env_key = KEY_BY_PROVIDER[prov]
             print(f"----🔑 {t['change_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' terminal=false refresh=false")
@@ -580,6 +583,9 @@ if auto_voice:
 # ─── Service control ───────────────────────────────────────────────────────
 print("---")
 print(t["service_section"])
+version = health.get('version', '')
+version_suffix = f" (v{version})" if version else ""
+print(f"--🔄 {t['update']}{version_suffix} | bash='{update_helper}' terminal=false refresh=false")
 restart = f"launchctl unload '{plist}' 2>/dev/null; sleep 1; launchctl load '{plist}'"
 print(f"--{t['restart']} | bash='/bin/bash' param1='-c' param2={shlex.quote(restart)} terminal=false refresh=true")
 print(f"--{t['stop']} | bash='launchctl' param1='unload' param2={plist} terminal=false refresh=true")

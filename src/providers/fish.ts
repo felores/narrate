@@ -54,32 +54,10 @@ export class FishProvider implements Provider {
     return process.env.FISH_AUDIO_API_KEY;
   }
 
-  async health(): Promise<ProviderHealth> {
-    if (!this.apiKey) {
-      return { configured: false, reason: "FISH_AUDIO_API_KEY env var not set" };
-    }
-    try {
-      const response = await fetch(`${API_BASE}/wallet/self/package`, {
-        headers: { Authorization: `Bearer ${this.apiKey}` },
-        signal: AbortSignal.timeout(3000),
-      });
-      if (response.ok) {
-        const pkg = (await response.json()) as {
-          balance?: number;
-          total?: number;
-          type?: string;
-        };
-        if (typeof pkg.total === "number" && typeof pkg.balance === "number") {
-          return {
-            configured: true,
-            credits: `${pkg.balance.toLocaleString()} / ${pkg.total.toLocaleString()} credits (${pkg.type ?? "?"} package)`,
-          };
-        }
-      }
-    } catch {
-      /* offline — still configured */
-    }
-    return { configured: true };
+  health(): ProviderHealth {
+    return this.apiKey
+      ? { configured: true }
+      : { configured: false, reason: "FISH_AUDIO_API_KEY env var not set" };
   }
 
   async generateSpeech(

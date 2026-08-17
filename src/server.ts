@@ -42,6 +42,15 @@ const repoRoot = isCompiled
 const logsDir = process.env.NARRATE_LOGS_DIR ?? join(repoRoot, "logs");
 installLogger(join(logsDir, "narrate.log"), join(logsDir, "narrate-error.log"));
 
+let serverVersion = "unknown";
+try {
+  serverVersion = (
+    JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf-8")) as { version?: string }
+  ).version ?? "unknown";
+} catch {
+  /* binary installs may lack package.json — leave "unknown" */
+}
+
 const config = loadConfig();
 const voices: VoicesRegistry = loadVoices(config.voices_path ?? undefined);
 
@@ -270,13 +279,14 @@ serve({
     if (url.pathname === "/health") {
       const providers: Record<
         string,
-        { configured: boolean; reason?: string; credits?: string }
+        { configured: boolean; reason?: string }
       > = {};
       for (const p of ALL_PROVIDERS) {
         providers[p.name] = await p.health();
       }
       return jsonResponse({
         status: "healthy",
+        version: serverVersion,
         port: PORT,
         default_provider: config.default_provider,
         default_voice: config.default_voice,

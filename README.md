@@ -347,10 +347,11 @@ Per-harness recipes live under [`integrations/`](integrations/). Summary:
 | **OpenCode** | Plugin (auto-voice + `narrate_speak` tool) | `integrations/opencode/install.sh` | [`integrations/opencode/`](integrations/opencode/) |
 | **Pi (pi-mono)** | Extension (`message_end` auto-voice) + skill | `integrations/pi/install.sh` | [`integrations/pi/`](integrations/pi/) |
 | **ChatGPT Codex CLI** | MCP (streamable HTTP) + AGENTS.md | `bash integrations/codex/install.sh` | [`integrations/codex/`](integrations/codex/) |
+| **DeepSeek Harness (dsh)** | Cordis plugin (auto-voice + `narrate_speak` tool) | `bash integrations/dsh/install.sh` | [`integrations/dsh/`](integrations/dsh/) |
 | **Cursor / Windsurf / Cline** | MCP | manual config snippet | [`integrations/cursor/`](integrations/cursor/) |
 | **Shell scripts / cron / CI** | Direct CLI | n/a | [`integrations/shell/`](integrations/shell/) |
 
-The four first-class harnesses (Claude Code, OpenCode, Pi, Codex) ship a
+The five first-class harnesses (Claude Code, OpenCode, Pi, Codex, DeepSeek Harness) ship a
 one-command installer that auto-registers everything (MCP, hooks/extensions, the
 `🤖 BOT:` auto-voice convention, and a companion skill). No manual JSON editing.
 

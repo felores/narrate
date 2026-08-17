@@ -1,0 +1,18 @@
+# narrate-dsh bundle patch: one insert row mounting the narrate plugin.
+#
+# Applied as a bundle layer when `dsh plugin --profile <name> add narrate-dsh`
+# reconciles this package's `dsh.bundle` declaration into the profile's
+# `dsh.profile.bundles`. Rows after this layer (the profile's own
+# cordis.patch.yml, --patch overlays) can override `config` by id.
+- insert:
+    - id: narrate
+      name: 'narrate-dsh'
+      config:
+        # Narrate server URL. The env default mirrors every other harness
+        # integration (NARRATE_URL); the plugin itself falls back to the same
+        # chain when config is absent, so a bare mount is never broken.
+        url: !!js process.env.NARRATE_URL ?? 'http://localhost:8888'
+        autoVoice: true
+        tool: true
+        injectConvention: true
+        skill: true
