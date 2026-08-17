@@ -3,8 +3,9 @@ name: narrate
 description: >-
   Set up, configure, and use narrate — the provider-agnostic TTS gateway. Use
   this skill whenever the user wants to install or configure narrate, pick or
-  preview TTS voices, choose a provider (ElevenLabs, OpenAI, Gemini, xAI, or the
-  built-in system voice), add API keys, or troubleshoot "no audio". ALSO use it
+  preview TTS voices, choose a provider (ElevenLabs, OpenAI, Gemini, xAI,
+  Soniox, Fish Audio, Voicebox, or system), add API keys, or troubleshoot "no
+  audio". ALSO use it
   whenever the user asks to narrate, read something aloud, or speak text ("narra
   eso", "read that aloud", "dilo en voz alta", "speak this") — even if they
   don't say the word "narrate". If voice output isn't working or the user asks
@@ -14,7 +15,7 @@ description: >-
 # narrate
 
 `narrate` is a local TTS gateway: one server (default `http://localhost:8888`)
-that speaks text through six providers behind one uniform interface. This skill
+that speaks text through eight providers behind one uniform interface. This skill
 does two jobs:
 
 1. **Setup / onboarding** — get narrate installed, pick providers + voices, write config.
@@ -71,6 +72,9 @@ alone). Match to their needs:
 - "Cheap and good, simple" → **OpenAI**.
 - "Free tier, multilingual" → **Gemini**.
 - "Grok voices" → **xAI**.
+- "Multilingual voice identity and precise pronunciation" → **Soniox**.
+- "Use a voice model trained from my audio" → **Fish Audio**.
+- "Local voice profiles and cloning" → **Voicebox**.
 
 Share the preview URL for each provider they're considering so they can listen
 first. Then have them create an API key (links in `references/providers.md`).

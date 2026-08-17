@@ -10,7 +10,7 @@ description: >-
 # narrate (dsh)
 
 `narrate` is a local TTS gateway: one server (default `http://localhost:8888`)
-that speaks text through seven providers behind one uniform interface. The
+that speaks text through eight providers behind one uniform interface. The
 `narrate-dsh` plugin connects this harness to it.
 
 ## On-demand narration

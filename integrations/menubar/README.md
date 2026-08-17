@@ -1,14 +1,14 @@
 # narrate — SwiftBar plugin
 
-A macOS menu bar control panel for the narrate TTS gateway. Shows server status, the provider matrix with API key management, and lets you pick **one active provider** and then choose the two global voices from that provider's list (on-demand `narrate` + session-end `🤖 BOT:`), each with its own test button. Menu is English by default with an EN/ES toggle at the bottom.
+A macOS menu bar control panel for the narrate TTS gateway. Shows server status, the provider matrix with API key management, and two independent voice targets: on-demand `narrate` and session-end `🤖 BOT:`. Each target selects its own provider and voice. Menu is English by default with an EN/ES toggle at the bottom.
 
 ## What it shows
 
 - **🎙️** when the narrate server responds healthy on `localhost:8888`, **🔇** when down.
 - Click to open the dropdown:
   - Active port, configured-provider count, current voice pair.
-  - **Providers** — one row per provider. Cloud providers (ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio) show `✅` with a key present or `⚪` without; each has an API key submenu (`Change` / `Remove`, or `Add` when missing). Keys are written to `~/.env` **and** synced to the launchd user domain (`launchctl setenv`/`unsetenv`), so they survive restarts and match what the LaunchAgent sees. Clicking a non-active configured provider **switches the active provider** (resets the default voice to that provider's default and clears the session pair). Voicebox shows `✅` when the local instance responds; when down it appears `⚪` with an "Install / start voicebox" link to the project. System is always available.
-  - **Voices · <active provider>** — two pickers, both drawing only from the active provider's real voice list (xAI: ara/eve/rex/sal/leo, OpenAI: alloy/echo/…, Gemini: Kore/Puck/…, ElevenLabs: Rachel/Bella/…, Soniox: live `tts-rt-v2` voices with Adrian fallback, System: Samantha/Daniel/…, Voicebox: the live profiles from the local instance, e.g. Santa · es · kokoro). The narrate picker sets `default_provider`/`default_voice`; the session picker sets `auto_provider`/`auto_voice` (provider = the active one, so both voices stay on the same provider). `Use same as narrate` clears the session pair.
+  - **Providers** — one row per provider for API key and status management only. Cloud providers (ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio) show `✅` with a key present or `⚪` without; each has an API key submenu (`Change` / `Remove`, or `Add` when missing). Keys are written to `~/.env` **and** synced to the launchd user domain (`launchctl setenv`/`unsetenv`), so they survive restarts and match what the LaunchAgent sees. Voicebox shows `✅` when the local instance responds; when down it appears `⚪` with an "Install / start voicebox" link to the project. System is always available.
+  - **Voices** — the Narrate and Session targets each show their selected voice and provider. Under each target, every configured provider with a catalog is a selector. Selecting a different provider assigns that target the provider's default voice; only the selected provider expands to its catalog. At most two catalogs render. Soniox stays flat with its live `tts-rt-v2` descriptions; Fish stays grouped by language. The narrate picker sets `default_provider`/`default_voice`; the session picker sets `auto_provider`/`auto_voice`. `Use same as narrate` clears the session pair.
   - **Test buttons** — `▶ Test narrate voice` and `▶ Test session voice` speak a sample phrase in the current pairs without changing config.
   - Last 3 lines of `narrate.log`.
   - Service controls — Restart / Stop the LaunchAgent, open `narrate.log` in Console.app or Terminal.
@@ -23,7 +23,7 @@ The menu posts to `POST /config` (server-side, `src/server.ts`), which validates
 | `default_provider` / `default_voice` | Voice used for on-demand narration (`narrate` CLI, `narrate_speak`, POST `/speak`) |
 | `auto_provider` / `auto_voice` | Voice used by harnesses for the `🤖 BOT:` session-end marker (OpenCode plugin, Pi extension, Claude Code stop hook) |
 
-`auto_voice: null` + `auto_provider: null` = session voice follows the narrate voice ("Use same as narrate"). Switching the active provider in the menu resets `default_voice` to the provider's default and clears the auto pair, so both voices live on the same provider.
+`auto_voice: null` + `auto_provider: null` = session voice follows the narrate voice ("Use same as narrate"). The menu does not have an active provider: changing a target provider changes only that target's pair.
 
 ## Install
 
@@ -53,7 +53,7 @@ To make SwiftBar auto-start at boot manually: System Settings → General → Lo
 
 ## Helper scripts (repo, referenced by absolute path)
 
-- `narrate-menubar-config.sh` — voice changes: `narrate VOICE PROVIDER`, `auto VOICE PROVIDER`, `auto-same` (session = narrate), or `select VOICE PROVIDER` (switch active provider, reset default voice, clear session pair). Refreshes SwiftBar after applying, or relaunches affected SwiftBar 2.1.0/2.1.1 versions when the voice count changes.
+- `narrate-menubar-config.sh` — voice changes: `narrate VOICE PROVIDER`, `auto VOICE PROVIDER`, `auto-same` (session = narrate), `narrate-provider VOICE PROVIDER`, or `auto-provider VOICE PROVIDER`. `select VOICE PROVIDER` remains for external legacy callers. SwiftBar 2.1.0/2.1.1 relaunches only for provider-changing modes and legacy `select`; ordinary voice changes refresh via URL. Newer versions always use URL refresh.
 - `narrate-menubar-key.sh` — prompts for an API key (hidden input) or removes one (`remove` mode); calls `POST /keys`.
 - `narrate-menubar-speak.sh` — speaks `$3` (or a default phrase) with `$1` voice / `$2` provider.
 - `narrate-menubar-lang.sh` — writes `{"lang":"en|es"}` to `~/.config/narrate/menubar.json` and refreshes.

@@ -58,6 +58,8 @@ check_key ELEVENLABS_API_KEY "ElevenLabs"
 check_key OPENAI_API_KEY     "OpenAI"
 check_key GEMINI_API_KEY     "Gemini"
 check_key XAI_API_KEY        "xAI"
+check_key SONIOX_API_KEY     "Soniox"
+check_key FISH_AUDIO_API_KEY "Fish Audio"
 say "  (system provider needs no key — always available)"
 
 # ── Configured providers (from /health if up) ───────────────────

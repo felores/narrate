@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.5.1 — 2026-08-17
+
+### Added
+- **Soniox TTS provider** using the `tts-rt-v2` REST API, with live voice discovery, multilingual language selection, speed and silence controls, and full CLI/HTTP/MCP/setup/SwiftBar integration.
+- **DeepSeek Harness integration** with automatic `🤖 BOT:` narration, the `narrate_speak` tool, always-on convention injection, and bundled skill.
+- **SwiftBar update action** for source and binary installs, with live version display.
+
+### Changed
+- Removed provider credit/quota network probes from `/health`, `narrate verify`, and SwiftBar so health checks stay fast and reliable.
+- Soniox voices are loaded live in SwiftBar and displayed as a flat list with their descriptions.
+- SwiftBar now lets the narrate and session voices use independent providers while retaining the "Use same as narrate" option.
+
+### Fixed
+- SwiftBar 2.1.0/2.1.1 no longer leaves voice submenus permanently disabled after provider or key changes. Narrate relaunches affected versions where refresh is known to fail; 2.1.2+ keeps normal URL refresh.
+- Release builds now publish one complete `SHA256SUMS.txt` across all platform artifacts.
+
 ## v0.5.0 — 2026-08-01
 
 ### Added

@@ -14,7 +14,7 @@
 
 A provider-agnostic TTS gateway — one server, one set of keys, the same voice in every harness.
 
-**Claude Code · Cursor · OpenCode · Pi · Codex · any shell**
+**Claude Code · Cursor · OpenCode · Pi · Codex · DeepSeek Harness · any shell**
 
 </div>
 
@@ -27,7 +27,7 @@ Your AI agents generate text. **narrate makes them speak** — with the voice yo
 - **Voice without lock-in.** ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio, local [Voicebox](https://github.com/jamiepine/voicebox), or your OS's built-in voice — all behind one interface. Swap providers by changing one line, never agent code.
 - **Speaks on day one.** A fresh install talks immediately with the OS voice (macOS `say` / Linux `espeak` / Windows SAPI). API keys are optional — add them when you want studio quality.
 - **One setup, every tool.** CLI for shells and cron, HTTP for anything that can `fetch`, MCP for agents with native tool calling. Same keys, same voices, same server.
-- **Drops into any AI harness.** One-command installers for Claude Code, OpenCode, Pi, and Codex: auto-voice on every response (`🤖 BOT:` convention), on-demand narration, zero manual JSON.
+- **Drops into any AI harness.** One-command installers for Claude Code, OpenCode, Pi, Codex, and DeepSeek Harness: auto-voice on every response (`🤖 BOT:` convention), on-demand narration, zero manual JSON.
 - **Zero dependencies to run.** Prebuilt binaries for macOS, Windows, and Linux — no bun, no git, no Node. One command installs it, including auto-start as a service.
 
 ## How versatile
@@ -36,7 +36,7 @@ Your AI agents generate text. **narrate makes them speak** — with the voice yo
 |---|---|
 | **8 providers** | Cloud (ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio) + local (Voicebox, system) — add any subset, narrate uses what you configure |
 | **3 interfaces** | CLI · HTTP · MCP — one code path, three doors in |
-| **6+ harnesses** | Claude Code, OpenCode, Pi, Codex one-command installers; Cursor/Windsurf/Cline via MCP; any shell script |
+| **6+ harnesses** | Claude Code, OpenCode, Pi, Codex, DeepSeek Harness one-command installers; Cursor/Windsurf/Cline via MCP; any shell script |
 | **3 operating systems** | macOS (launchd), Windows (SAPI + Task Scheduler), Linux (systemd) — same commands everywhere |
 | **0 required keys** | System voice works offline out of the box; premium providers are strictly additive |
 
@@ -950,6 +950,7 @@ narrate/
 │   ├── opencode/
 │   ├── pi/
 │   ├── codex/
+│   ├── dsh/
 │   ├── cursor/
 │   └── shell/
 ├── service/
@@ -1002,7 +1003,7 @@ Use **narrate** when you want one command that any harness or shell can call, mi
 | ✅ v0.3.6 | First-run UX: default provider is `system` so fresh installs work without API keys. README rewritten for non-technical users with a 3-command quickstart at the top. |
 | ✅ v0.4.0 | Windows support (SAPI system provider + Scoop bucket). Canonical `narrate` skill (guided setup + voice previews). One-command installers for Claude Code + Codex. Auto-voice always-on injection fix. Pi extension. Spanish README. |
 | ✅ v0.5.0 | Pre-built single-binary releases (no bun) + GitHub Actions release pipeline. Interactive `narrate setup` wizard. Fish Audio provider (trained voice models, free dev tier). Binary-mode launchd/systemd services. Windows Task Scheduler helper. |
-| Planned v0.5 | More providers (Cartesia, Hume EVI, Azure TTS) |
+| ✅ v0.5.1 | Soniox `tts-rt-v2` provider with live voices. DeepSeek Harness integration. SwiftBar updater and compatibility fix for disabled dynamic submenus. |
 | Planned v0.6 | `--direct` CLI mode (skip server, call providers directly) |
 | Planned v0.7 | Streaming TTS over WebSocket |
 | Planned v0.8 | Auth tokens for `/notify` and `/mcp` (currently localhost-only) |

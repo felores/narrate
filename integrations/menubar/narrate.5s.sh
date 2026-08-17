@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # <xbar.title>narrate</xbar.title>
-# <xbar.version>v0.4.0</xbar.version>
+# <xbar.version>v0.5.1</xbar.version>
 # <xbar.author>Felo Restrepo</xbar.author>
 # <xbar.author.github>felores</xbar.author.github>
-# <xbar.desc>Text-to-speech gateway that reads AI chat responses aloud. Works with Claude Code, OpenCode, Pi, Codex and any tool you chat with, across ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio and system voices.</xbar.desc>
+# <xbar.desc>Text-to-speech gateway for Claude Code, OpenCode, Pi, Codex, DeepSeek Harness and other tools, across ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio, Voicebox and system voices.</xbar.desc>
 # <xbar.abouturl>https://github.com/felores/narrate</xbar.abouturl>
 #
 # SwiftBar plugin for the narrate TTS gateway (5s refresh; EN/ES toggle).
@@ -119,7 +119,7 @@ T = {
         "add_key": "Add API key",
         "install_voicebox": "Install / start voicebox",
         "retry": "Retry",
-        "voices_section": "Voices · {provider}",
+        "voices_section": "Voices",
         "narrate_voice": "🎤 Narrate voice: {voice}",
         "session_voice_default": "🔊 Session voice (🤖 BOT): = narrate",
         "session_voice_header": "🔊 Session voice (🤖 BOT): {voice}",
@@ -151,7 +151,7 @@ T = {
         "add_key": "Añadir API key",
         "install_voicebox": "Instalar / iniciar voicebox",
         "retry": "Reintentar",
-        "voices_section": "Voces · {provider}",
+        "voices_section": "Voces",
         "narrate_voice": "🎤 Voz narrate: {voice}",
         "session_voice_default": "🔊 Voz de sesión (🤖 BOT): = narrate",
         "session_voice_header": "🔊 Voz de sesión (🤖 BOT): {voice}",
@@ -177,13 +177,13 @@ t = T[lang]
 port = health.get('port', '?')
 default_provider = health.get('default_provider', 'system')
 default_voice = health.get('default_voice') or ''
-auto_provider = health.get('auto_provider') or default_provider
+auto_provider = health.get('auto_provider')
 auto_voice = health.get('auto_voice') or ''
 providers = health.get('providers', {})
 ok = sum(1 for v in providers.values() if v.get('configured'))
 total = len(providers)
 
-auto_is_default = not auto_voice
+auto_is_default = not auto_provider and not auto_voice
 
 # ─── Voice catalogs ─────────────────────────────────────────────────────────
 # Raw provider voices (curated, matches the server's own lists). Voicebox
@@ -483,9 +483,7 @@ def voice_catalog(prov):
     return provider_voices.get(prov, [])
 
 def provider_default_voice(prov, catalog):
-    """Voice to use when switching to this provider: keep current if valid."""
-    if default_voice and any(v["voice_id"] == default_voice for v in catalog):
-        return default_voice
+    """Voice to use when selecting a provider."""
     return DEFAULT_VOICE.get(prov, catalog[0]["voice_id"] if catalog else "")
 
 def check_row(attrs):
@@ -515,27 +513,14 @@ if auto_is_default:
 else:
     print(f"{t['session_header'].format(voice=sanitize(voice_display_name(auto_voice, session_catalog)))} · {provider_label(auto_provider)} | color=#666666")
 
-# ─── Providers (pick the active provider + API keys) ────────────────────────
+# ─── Providers (status + API keys) ──────────────────────────────────────────
 print("---")
 print(f"{t['providers_section']} | refresh=true")
 for prov in PROVIDER_ORDER:
     cfg = providers.get(prov, {})
-    is_active = prov == default_provider
     name = provider_label(prov)
     if cfg.get('configured'):
-        mark = "✅" if is_active else "✅"
-        row = f"--{mark} {name}"
-        if is_active:
-            row += " (active)"
-        else:
-            catalog = voice_catalog(prov)
-            pv = provider_default_voice(prov, catalog)
-            if pv:
-                row += f" | bash='{config_helper}' param1='select' param2='{pv}' param3='{prov}' terminal=false refresh=false"
-        if is_active:
-            print(f"{row} | refresh=true")
-        else:
-            print(row)
+        print(f"--✅ {name} | refresh=true")
         if prov in KEY_BY_PROVIDER:
             env_key = KEY_BY_PROVIDER[prov]
             print(f"----🔑 {t['change_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' terminal=false refresh=false")
@@ -552,16 +537,17 @@ for prov in PROVIDER_ORDER:
             env_key = KEY_BY_PROVIDER[prov]
             print(f"----🔑 {t['add_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' terminal=false refresh=false")
 
-# ─── Voices (both pickers draw from the ACTIVE provider's list) ─────────────
+# ─── Voices (each target selects its own provider + voice) ──────────────────
 print("---")
-print(f"{t['voices_section'].format(provider=provider_label(default_provider))} | refresh=true")
+print(f"{t['voices_section']} | refresh=true")
 
 def voice_row(target, voice_id, provider, label, current, level=4):
     """One clickable voice row. target: narrate|auto"""
     checked = " checked=true" if current else ""
     print(
         f"{'-' * level}🗣 {sanitize(label)}"
-        f" | bash='{config_helper}' param1='{target}' param2='{voice_id}' param3='{provider}'"
+        f" | bash={shlex.quote(config_helper)} param1={shlex.quote(target)}"
+        f" param2={shlex.quote(voice_id)} param3={shlex.quote(provider)}"
         f" terminal=false refresh=false{checked}"
     )
 
@@ -578,11 +564,11 @@ LANG_NAMES = {
 def lang_display(code):
     return LANG_NAMES.get(code, code)
 
-def voice_list(target, catalog, current_voice, provider):
+def voice_list(target, catalog, current_voice, provider, level):
     """Render a picker. Big multilingual catalogs are grouped into
     per-language submenus (Fish); other catalogs stay flat."""
     if not catalog:
-        print(f"----{t['no_voices']} | color=#888888")
+        print(f"{'-' * level}{t['no_voices']} | color=#888888")
         return
     if len(catalog) > 12 and all("langs" in v for v in catalog):
         groups = {}
@@ -591,32 +577,54 @@ def voice_list(target, catalog, current_voice, provider):
             g = lang_display(langs[0]) if langs else "🌐"
             groups.setdefault(g, []).append(v)
         for g, vs in sorted(groups.items(), key=lambda kv: -len(kv[1])):
-            print(f"----{g} ({len(vs)}) | refresh=true color=#888888 size=11")
+            print(f"{'-' * level}{g} ({len(vs)}) | refresh=true color=#888888 size=11")
             for v in vs:
                 voice_row(target, v["voice_id"], provider, v["label"].split(" · ")[0],
-                          v["voice_id"] == current_voice, level=6)
+                          v["voice_id"] == current_voice, level=level + 2)
         return
     for v in catalog:
-        voice_row(target, v["voice_id"], provider, v["label"], v["voice_id"] == current_voice)
+        voice_row(target, v["voice_id"], provider, v["label"], v["voice_id"] == current_voice, level=level)
+
+def target_picker(target, provider, current_voice, provider_mode):
+    for prov in PROVIDER_ORDER:
+        if not providers.get(prov, {}).get("configured"):
+            continue
+        catalog = voice_catalog(prov)
+        if not catalog:
+            continue
+        current = prov == provider
+        row = f"----{provider_label(prov)}"
+        if current:
+            print(f"{row} | refresh=true{check_row(True)}")
+            voice_list(target, catalog, current_voice, prov, level=6)
+        else:
+            voice_id = provider_default_voice(prov, catalog)
+            print(
+                f"{row} | bash={shlex.quote(config_helper)} param1={shlex.quote(provider_mode)}"
+                f" param2={shlex.quote(voice_id)} param3={shlex.quote(prov)}"
+                " terminal=false refresh=false"
+            )
 
 # Narrate voice
 print(f"--{t['narrate_voice'].format(voice=sanitize(voice_display_name(default_voice, active_catalog) or '(none)'))} | refresh=true")
-voice_list("narrate", active_catalog, default_voice, default_provider)
+target_picker("narrate", default_provider, default_voice, "narrate-provider")
 
 # Session voice
 if auto_is_default:
     print(f"--{t['session_voice_default']} | refresh=true")
+    target_picker("auto", default_provider, default_voice, "auto-provider")
 else:
     print(f"--{t['session_voice_header'].format(voice=sanitize(voice_display_name(auto_voice, session_catalog)))} | refresh=true")
-voice_list("auto", session_catalog, auto_voice, session_provider)
+    target_picker("auto", session_provider, auto_voice, "auto-provider")
 print(f"----{t['use_same']} | bash='{config_helper}' param1='auto-same' terminal=false refresh=false{check_row(auto_is_default)}")
 
 # ─── Test buttons (speak with the current pair, no config change) ──────────
 print("---")
 if default_voice:
-    print(f"--{t['test_narrate']} | bash='{speak_helper}' param1='{default_voice}' param2='{default_provider}' param3='{t['test_narrate_msg']}' terminal=false refresh=false")
-if auto_voice:
-    print(f"--{t['test_session']} | bash='{speak_helper}' param1='{auto_voice}' param2='{auto_provider}' param3='{t['test_session_msg']}' terminal=false refresh=false")
+    print(f"--{t['test_narrate']} | bash={shlex.quote(speak_helper)} param1={shlex.quote(default_voice)} param2={shlex.quote(default_provider)} param3={shlex.quote(t['test_narrate_msg'])} terminal=false refresh=false")
+session_voice = auto_voice or default_voice
+if session_voice:
+    print(f"--{t['test_session']} | bash={shlex.quote(speak_helper)} param1={shlex.quote(session_voice)} param2={shlex.quote(session_provider)} param3={shlex.quote(t['test_session_msg'])} terminal=false refresh=false")
 
 # ─── Service control ───────────────────────────────────────────────────────
 print("---")

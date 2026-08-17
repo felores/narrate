@@ -16,7 +16,7 @@
 
 Un gateway de TTS agnóstico al proveedor: un servidor, un set de llaves, la misma voz en cualquier harness.
 
-**Claude Code · Cursor · OpenCode · Pi · Codex · cualquier shell**
+**Claude Code · Cursor · OpenCode · Pi · Codex · DeepSeek Harness · cualquier shell**
 
 </div>
 
@@ -29,7 +29,7 @@ Tus agentes de IA generan texto. **narrate les da voz** — con la voz que quier
 - **Voz sin lock-in.** ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio, [Voicebox](https://github.com/jamiepine/voicebox) local o la voz integrada de tu sistema operativo — todo detrás de una sola interfaz. Cambiar de proveedor es una línea, nunca código del agente.
 - **Habla desde el día uno.** Una instalación nueva habla de inmediato con la voz del sistema (macOS `say` / Linux `espeak` / Windows SAPI). Las llaves de API son opcionales — agrégalas cuando quieras calidad de estudio.
 - **Una configuración, todas las herramientas.** CLI para shells y cron, HTTP para cualquier cosa que haga `fetch`, MCP para agentes con tool calling nativo. Mismas llaves, mismas voces, mismo servidor.
-- **Entra en cualquier harness de IA.** Instaladores de un comando para Claude Code, OpenCode, Pi y Codex: voz automática en cada respuesta (convención `🤖 BOT:`), narración a demanda, cero JSON manual.
+- **Entra en cualquier harness de IA.** Instaladores de un comando para Claude Code, OpenCode, Pi, Codex y DeepSeek Harness: voz automática en cada respuesta (convención `🤖 BOT:`), narración a demanda, cero JSON manual.
 - **Cero dependencias para correr.** Binarios precompilados para macOS, Windows y Linux — sin bun, sin git, sin Node. Un comando instala todo, incluido el auto-arranque como servicio.
 
 ## Cuán versátil es
@@ -38,7 +38,7 @@ Tus agentes de IA generan texto. **narrate les da voz** — con la voz que quier
 |---|---|
 | **8 proveedores** | Nube (ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio) + local (Voicebox, sistema) — agrega cualquier subconjunto, narrate usa lo que configures |
 | **3 interfaces** | CLI · HTTP · MCP — un solo código, tres puertas de entrada |
-| **6+ harnesses** | Instaladores de un comando para Claude Code, OpenCode, Pi y Codex; Cursor/Windsurf/Cline vía MCP; cualquier script de shell |
+| **6+ harnesses** | Instaladores de un comando para Claude Code, OpenCode, Pi, Codex y DeepSeek Harness; Cursor/Windsurf/Cline vía MCP; cualquier script de shell |
 | **3 sistemas operativos** | macOS (launchd), Windows (SAPI + Task Scheduler), Linux (systemd) — los mismos comandos en todos |
 | **0 llaves requeridas** | La voz del sistema funciona offline de fábrica; los proveedores premium son estrictamente aditivos |
 
@@ -352,10 +352,11 @@ Las recetas por harness viven en [`integrations/`](integrations/). Resumen:
 | **OpenCode** | Plugin (auto-voz + herramienta `narrate_speak`) | `integrations/opencode/install.sh` | [`integrations/opencode/`](integrations/opencode/) |
 | **Pi (pi-mono)** | Extensión (auto-voz por `message_end`) + skill | `integrations/pi/install.sh` | [`integrations/pi/`](integrations/pi/) |
 | **ChatGPT Codex CLI** | MCP (streamable HTTP) + AGENTS.md | `bash integrations/codex/install.sh` | [`integrations/codex/`](integrations/codex/) |
+| **DeepSeek Harness (dsh)** | Plugin Cordis (auto-voz + herramienta `narrate_speak`) | `bash integrations/dsh/install.sh` | [`integrations/dsh/`](integrations/dsh/) |
 | **Cursor / Windsurf / Cline** | MCP | snippet de config manual | [`integrations/cursor/`](integrations/cursor/) |
 | **Scripts de shell / cron / CI** | CLI directo | n/a | [`integrations/shell/`](integrations/shell/) |
 
-Los cuatro harnesses de primera clase (Claude Code, OpenCode, Pi, Codex) traen un instalador de un comando que auto-registra todo (MCP, hooks/extensiones, la convención de auto-voz `🤖 BOT:`, y un skill acompañante). Sin editar JSON a mano.
+Los cinco harnesses de primera clase (Claude Code, OpenCode, Pi, Codex, DeepSeek Harness) traen un instalador de un comando que auto-registra todo (MCP, hooks/extensiones, la convención de auto-voz `🤖 BOT:`, y un skill acompañante). Sin editar JSON a mano.
 
 ### Plugin de OpenCode
 
@@ -944,6 +945,7 @@ narrate/
 │   ├── opencode/
 │   ├── pi/
 │   ├── codex/
+│   ├── dsh/
 │   ├── cursor/
 │   └── shell/
 ├── service/
@@ -996,7 +998,7 @@ Usa **narrate** cuando quieras un comando que cualquier harness o shell pueda ll
 | ✅ v0.3.6 | UX de primer arranque: el proveedor por defecto es `system` para que las instalaciones nuevas funcionen sin llaves de API. README reescrito para usuarios no técnicos con un quickstart de 3 comandos arriba. |
 | ✅ v0.4.0 | Soporte Windows (provider SAPI + bucket de Scoop). Skill canónico `narrate` (setup guiado + previews de voz). Instaladores de un comando para Claude Code + Codex. Fix de inyección siempre-activa de auto-voz. Extensión de Pi. README en español. |
 | ✅ v0.5.0 | Releases de binario único precompilado (sin bun) + pipeline de release en GitHub Actions. Wizard interactivo `narrate setup`. Provider de Fish Audio (modelos de voz entrenados, tier dev gratis). Servicios launchd/systemd en modo binario. Helper de Task Scheduler para Windows. |
-| Planeado v0.5 | Más proveedores (Cartesia, Hume EVI, Azure TTS) |
+| ✅ v0.5.1 | Provider Soniox `tts-rt-v2` con voces en vivo. Integración con DeepSeek Harness. Actualizador de SwiftBar y fix de compatibilidad para submenús dinámicos deshabilitados. |
 | Planeado v0.6 | Modo CLI `--direct` (omite el servidor, llama a los proveedores directo) |
 | Planeado v0.7 | TTS en streaming sobre WebSocket |
 | Planeado v0.8 | Tokens de auth para `/notify` y `/mcp` (actualmente solo localhost) |

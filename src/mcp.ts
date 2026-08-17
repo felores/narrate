@@ -41,7 +41,7 @@ export function createMcpServer(deps: {
   notify: NotifyHandler;
 }): McpServer {
   const server = new McpServer(
-    { name: "narrate", version: "0.3.0" },
+    { name: "narrate", version: "0.5.1" },
     {
       capabilities: { tools: {} },
       instructions:
