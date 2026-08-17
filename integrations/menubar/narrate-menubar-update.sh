@@ -48,4 +48,11 @@ else
     notify "Sosumi" "Update FAILED. See /tmp/narrate-update.log"
 fi
 
-open "swiftbar://refreshallplugins" 2>/dev/null || true
+SWIFTBAR_VERSION="$(mdls -name kMDItemVersion -raw /Applications/SwiftBar.app 2>/dev/null || true)"
+if [[ "$SWIFTBAR_VERSION" == "2.1.0" || "$SWIFTBAR_VERSION" == "2.1.1" ]]; then
+    killall SwiftBar 2>/dev/null || true
+    sleep 1
+    open -a SwiftBar
+else
+    open "swiftbar://refreshallplugins" 2>/dev/null || true
+fi

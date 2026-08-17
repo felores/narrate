@@ -45,4 +45,12 @@ curl -s -X POST "$NARRATE_URL/keys" \
     -H 'X-Narrate-Client-Id: swiftbar' \
     -d "$BODY" > /dev/null
 
-open "swiftbar://refreshallplugins" 2>/dev/null || true
+# SwiftBar 2.1.0/2.1.1 cannot refresh changed submenu child counts safely.
+SWIFTBAR_VERSION="$(mdls -name kMDItemVersion -raw /Applications/SwiftBar.app 2>/dev/null || true)"
+if [[ "$SWIFTBAR_VERSION" == "2.1.0" || "$SWIFTBAR_VERSION" == "2.1.1" ]]; then
+    killall SwiftBar 2>/dev/null || true
+    sleep 1
+    open -a SwiftBar
+else
+    open "swiftbar://refreshallplugins" 2>/dev/null || true
+fi

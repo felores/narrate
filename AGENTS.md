@@ -64,6 +64,7 @@ Kokoro voices are multilingual at the model level — they're style vectors, not
 ## SwiftBar plugin — read before changing it
 
 - **Refresh: URL scheme, not signals.** `open "swiftbar://refreshallplugins"`. SwiftBar does not handle `pkill -USR1`. We learned this the hard way.
+- **SwiftBar 2.1.0/2.1.1 dynamic-submenu regression.** Changing child counts detaches and permanently disables submenu parents until SwiftBar relaunches (upstream #515/#521, fixed in 2.1.2). All submenu parents emitted by `narrate.5s.sh` carry `refresh=true`, and install/update/provider/key paths relaunch those affected versions instead of trying an ineffective refresh. Do not remove this compatibility path while these versions remain installed in the wild.
 - **Plugin is `cp`'d, not symlinked.** SwiftBar resolves `BASH_SOURCE` relative to the plugin location. The plugin references its helpers via absolute path back to the repo (`$REPO_ROOT/integrations/menubar/narrate-menubar-*.sh`). Symlinking the plugin breaks helper resolution.
 - **Don't put `.sh` files in the SwiftBar plugin dir** other than the plugin itself. SwiftBar treats every `.sh` as a plugin and renders a stray "?" icon for anything that doesn't print menu output.
 - **Login Items registration via osascript.** `integrations/menubar/install.sh` adds SwiftBar to macOS Login Items via System Events. May silently fail if the user denied permissions — script tolerates this.

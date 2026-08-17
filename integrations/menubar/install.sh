@@ -62,8 +62,16 @@ if ! pgrep -lf SwiftBar > /dev/null 2>&1; then
     echo "→ Launching SwiftBar"
     open -a SwiftBar
 else
-    echo "→ Asking SwiftBar to refresh its plugins"
-    open "swiftbar://refreshallplugins" >/dev/null 2>&1 || true
+    SWIFTBAR_VERSION="$(mdls -name kMDItemVersion -raw /Applications/SwiftBar.app 2>/dev/null || true)"
+    if [[ "$SWIFTBAR_VERSION" == "2.1.0" || "$SWIFTBAR_VERSION" == "2.1.1" ]]; then
+        echo "→ Relaunching SwiftBar $SWIFTBAR_VERSION (dynamic-submenu compatibility)"
+        killall SwiftBar 2>/dev/null || true
+        sleep 1
+        open -a SwiftBar
+    else
+        echo "→ Asking SwiftBar to refresh its plugins"
+        open "swiftbar://refreshallplugins" >/dev/null 2>&1 || true
+    fi
 fi
 
 # Add SwiftBar to macOS Login Items so the menu icon comes back after reboot.

@@ -37,7 +37,7 @@ This:
 1. Removes the legacy `voice-server.5s.sh` plugin if it's there (it points at scripts that no longer exist after the migration to narrate).
 2. **Copies** `narrate.5s.sh` into `$HOME/Library/Application Support/SwiftBar/Plugins/`. (A real file, not a symlink — SwiftBar resolves `BASH_SOURCE` relative to the plugin location.) The four helper scripts are **not** copied: the plugin references them by absolute path back to the repo, so `install.sh` re-runs pick up changes without a stale helper copy.
 3. Adds SwiftBar to macOS Login Items so the menu icon survives reboot, unless `--no-autostart` is passed.
-4. Launches SwiftBar (or asks it to reload plugins via the `swiftbar://refreshallplugins` URL scheme if already running).
+4. Launches SwiftBar (or asks it to reload plugins via the `swiftbar://refreshallplugins` URL scheme if already running). On SwiftBar 2.1.0/2.1.1, install, update, provider, and key changes relaunch the app automatically to work around the upstream dynamic-submenu regression fixed in 2.1.2.
 
 After install, click the SwiftBar icon → **Refresh All** if your menu bar doesn't show 🎙️ within 5 seconds.
 
@@ -53,7 +53,7 @@ To make SwiftBar auto-start at boot manually: System Settings → General → Lo
 
 ## Helper scripts (repo, referenced by absolute path)
 
-- `narrate-menubar-config.sh` — voice changes: `narrate VOICE PROVIDER`, `auto VOICE PROVIDER`, `auto-same` (session = narrate), or `select VOICE PROVIDER` (switch active provider, reset default voice, clear session pair). Refreshes SwiftBar after applying.
+- `narrate-menubar-config.sh` — voice changes: `narrate VOICE PROVIDER`, `auto VOICE PROVIDER`, `auto-same` (session = narrate), or `select VOICE PROVIDER` (switch active provider, reset default voice, clear session pair). Refreshes SwiftBar after applying, or relaunches affected SwiftBar 2.1.0/2.1.1 versions when the voice count changes.
 - `narrate-menubar-key.sh` — prompts for an API key (hidden input) or removes one (`remove` mode); calls `POST /keys`.
 - `narrate-menubar-speak.sh` — speaks `$3` (or a default phrase) with `$1` voice / `$2` provider.
 - `narrate-menubar-lang.sh` — writes `{"lang":"en|es"}` to `~/.config/narrate/menubar.json` and refreshes.

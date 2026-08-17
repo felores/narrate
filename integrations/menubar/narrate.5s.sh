@@ -85,7 +85,7 @@ KEY_HELPER="$KEY_HELPER" \
 LANG_HELPER="$LANG_HELPER" \
 UPDATE_HELPER="$UPDATE_HELPER" \
 python3 - <<'PY'
-import os, json, shlex, urllib.request
+import os, json, shlex, ssl, urllib.request
 
 health = json.loads(os.environ['HEALTH'])
 url = os.environ['NARRATE_URL']
@@ -347,7 +347,7 @@ try:
             "https://api.soniox.com/v1/tts-models",
             headers={"Authorization": f"Bearer {soniox_key}"},
         )
-        with urllib.request.urlopen(req, timeout=3) as resp:
+        with urllib.request.urlopen(req, timeout=3, context=ssl._create_unverified_context()) as resp:
             soniox_models = json.loads(resp.read().decode()).get("models", [])
         soniox_model = next((m for m in soniox_models if m.get("id") == "tts-rt-v2"), None)
         live = []
@@ -357,7 +357,7 @@ try:
                 continue
             details = [v.get("description"), v.get("gender")]
             label = " · ".join([voice_id, *(d for d in details if d)])
-            live.append({"label": label, "voice_id": voice_id, "langs": []})
+            live.append({"label": label, "voice_id": voice_id})
         if live:
             provider_voices["soniox"] = live
 except Exception:
@@ -517,7 +517,7 @@ else:
 
 # ─── Providers (pick the active provider + API keys) ────────────────────────
 print("---")
-print(t["providers_section"])
+print(f"{t['providers_section']} | refresh=true")
 for prov in PROVIDER_ORDER:
     cfg = providers.get(prov, {})
     is_active = prov == default_provider
@@ -532,7 +532,10 @@ for prov in PROVIDER_ORDER:
             pv = provider_default_voice(prov, catalog)
             if pv:
                 row += f" | bash='{config_helper}' param1='select' param2='{pv}' param3='{prov}' terminal=false refresh=false"
-        print(f"{row} | color={'#666666' if is_active else '#222222'}")
+        if is_active:
+            print(f"{row} | refresh=true")
+        else:
+            print(row)
         if prov in KEY_BY_PROVIDER:
             env_key = KEY_BY_PROVIDER[prov]
             print(f"----🔑 {t['change_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' terminal=false refresh=false")
@@ -541,7 +544,7 @@ for prov in PROVIDER_ORDER:
         row = f"--⚪ {name}"
         reason = cfg.get('reason')
         extra = f" ({reason[:40]}...)" if reason else ""
-        print(f"{row}{extra} | color=#888888")
+        print(f"{row}{extra} | refresh=true color=#888888")
         if prov == "voicebox":
             print(f"----📖 {t['install_voicebox']} | bash='/usr/bin/open' param1='https://github.com/jamiepine/voicebox' terminal=false")
             print(f"----🔄 {t['retry']} | refresh=true")
@@ -551,7 +554,7 @@ for prov in PROVIDER_ORDER:
 
 # ─── Voices (both pickers draw from the ACTIVE provider's list) ─────────────
 print("---")
-print(t["voices_section"].format(provider=provider_label(default_provider)))
+print(f"{t['voices_section'].format(provider=provider_label(default_provider))} | refresh=true")
 
 def voice_row(target, voice_id, provider, label, current, level=4):
     """One clickable voice row. target: narrate|auto"""
@@ -577,7 +580,7 @@ def lang_display(code):
 
 def voice_list(target, catalog, current_voice, provider):
     """Render a picker. Big multilingual catalogs are grouped into
-    per-language submenus (fish's public list is 1000+) — flat otherwise."""
+    per-language submenus (Fish); other catalogs stay flat."""
     if not catalog:
         print(f"----{t['no_voices']} | color=#888888")
         return
@@ -588,7 +591,7 @@ def voice_list(target, catalog, current_voice, provider):
             g = lang_display(langs[0]) if langs else "🌐"
             groups.setdefault(g, []).append(v)
         for g, vs in sorted(groups.items(), key=lambda kv: -len(kv[1])):
-            print(f"----{g} ({len(vs)}) | color=#888888 size=11")
+            print(f"----{g} ({len(vs)}) | refresh=true color=#888888 size=11")
             for v in vs:
                 voice_row(target, v["voice_id"], provider, v["label"].split(" · ")[0],
                           v["voice_id"] == current_voice, level=6)
@@ -597,14 +600,14 @@ def voice_list(target, catalog, current_voice, provider):
         voice_row(target, v["voice_id"], provider, v["label"], v["voice_id"] == current_voice)
 
 # Narrate voice
-print(f"--{t['narrate_voice'].format(voice=sanitize(voice_display_name(default_voice, active_catalog) or '(none)'))}")
+print(f"--{t['narrate_voice'].format(voice=sanitize(voice_display_name(default_voice, active_catalog) or '(none)'))} | refresh=true")
 voice_list("narrate", active_catalog, default_voice, default_provider)
 
 # Session voice
 if auto_is_default:
-    print(f"--{t['session_voice_default']}")
+    print(f"--{t['session_voice_default']} | refresh=true")
 else:
-    print(f"--{t['session_voice_header'].format(voice=sanitize(voice_display_name(auto_voice, session_catalog)))}")
+    print(f"--{t['session_voice_header'].format(voice=sanitize(voice_display_name(auto_voice, session_catalog)))} | refresh=true")
 voice_list("auto", session_catalog, auto_voice, session_provider)
 print(f"----{t['use_same']} | bash='{config_helper}' param1='auto-same' terminal=false refresh=false{check_row(auto_is_default)}")
 
@@ -617,7 +620,7 @@ if auto_voice:
 
 # ─── Service control ───────────────────────────────────────────────────────
 print("---")
-print(t["service_section"])
+print(f"{t['service_section']} | refresh=true")
 version = health.get('version', '')
 version_suffix = f" (v{version})" if version else ""
 print(f"--🔄 {t['update']}{version_suffix} | bash='{update_helper}' terminal=false refresh=false")
@@ -632,7 +635,7 @@ try:
     lines = open(log_path, errors="replace").read().splitlines()[-3:]
     if lines:
         print("---")
-        print(t["recent_log"])
+        print(f"{t['recent_log']} | refresh=true")
         for line in lines:
             short = line[:72]
             print(f"-- {short} | color=#888888 size=10 font=Menlo")
@@ -644,7 +647,7 @@ except Exception:
 print("---")
 print(t["open_repo"] + " | href=https://github.com/felores/narrate")
 print("---")
-print(t["language_section"])
+print(f"{t['language_section']} | refresh=true")
 print(f"--🇬🇧 English | bash='{lang_helper}' param1='en' terminal=false refresh=false{check_row(lang == 'en')}")
 print(f"--🇪🇸 Español | bash='{lang_helper}' param1='es' terminal=false refresh=false{check_row(lang == 'es')}")
 PY
