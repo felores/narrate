@@ -3,6 +3,7 @@ import { ElevenLabsProvider } from "./elevenlabs.ts";
 import { OpenAIProvider } from "./openai.ts";
 import { GeminiProvider } from "./gemini.ts";
 import { XaiProvider } from "./xai.ts";
+import { SonioxProvider } from "./soniox.ts";
 import { FishProvider } from "./fish.ts";
 import { VoiceboxProvider } from "./voicebox.ts";
 import { SystemProvider } from "./system.ts";
@@ -12,6 +13,7 @@ export const ALL_PROVIDERS: Provider[] = [
   new OpenAIProvider(),
   new GeminiProvider(),
   new XaiProvider(),
+  new SonioxProvider(),
   new FishProvider(),
   new VoiceboxProvider(),
   new SystemProvider(),

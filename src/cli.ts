@@ -44,7 +44,7 @@ Subcommands:
 Options:
   -v, --voice NAME      Voice preset from voices.json (e.g. fred, researcher)
   -i, --id ID           Raw provider voice id (bypasses preset registry)
-  -p, --provider NAME   Provider: elevenlabs, openai, gemini, xai, fish, voicebox, system
+  -p, --provider NAME   Provider: elevenlabs, openai, gemini, xai, soniox, fish, voicebox, system
   -l, --language LANG   Force generation language (e.g. es, en, ja, fr).
                         Useful with cross-language voices: a voicebox Kokoro
                         Bella (en-trained) speaks proper Spanish phonetics
@@ -256,6 +256,8 @@ async function sampleVoiceFor(provider: string): Promise<string> {
       return "Kore";
     case "xai":
       return "ara";
+    case "soniox":
+      return "Adrian";
     case "fish":
       // Fish voices are user-created models — use the first trained one.
       if (process.env.NARRATE_TEST_FISH_VOICE) return process.env.NARRATE_TEST_FISH_VOICE;

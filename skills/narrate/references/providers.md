@@ -118,6 +118,19 @@ The zero-setup default. Works everywhere, no account.
 
 ---
 
+## Soniox — real-time multilingual TTS
+
+- **Preview voices (browser):** https://console.soniox.com
+- **API key env var:** `SONIOX_API_KEY`
+- **Voices:** fetched live from `GET /v1/tts-models` for `tts-rt-v2`; use
+  `Adrian` as the default/sample voice. Every built-in voice supports every
+  supported language.
+- **Model:** `tts-rt-v2` (narrate default; v1 is deprecated).
+- **narrate usage:** `narrate --provider soniox --id Adrian "Hello"`
+- Best for: low-latency, multilingual narration.
+
+---
+
 ## voicebox — local voice cloning (optional)
 
 Not a cloud provider — a local app narrate proxies to. Auto-detected on
@@ -135,5 +148,6 @@ voice cloning. See the repo README "Voicebox deep dive".
 | "cheap and easy" | **OpenAI** |
 | "free tier, other languages" | **Gemini** |
 | "Grok voices" | **xAI** |
+| "low-latency multilingual narration" | **Soniox** |
 | "my own / cloned voice" | **Fish Audio** (or voicebox, local) |
 | "clone my own voice" | **voicebox** (see README) |

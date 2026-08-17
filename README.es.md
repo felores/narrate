@@ -26,7 +26,7 @@ Un gateway de TTS agnóstico al proveedor: un servidor, un set de llaves, la mis
 
 Tus agentes de IA generan texto. **narrate les da voz** — con la voz que quieras, del proveedor que ya pagas, dentro de la herramienta que uses. Lo configuras una vez, y cada harness, script y cron habla a través del mismo servidor.
 
-- **Voz sin lock-in.** ElevenLabs, OpenAI, Gemini, xAI, Fish Audio, [Voicebox](https://github.com/jamiepine/voicebox) local o la voz integrada de tu sistema operativo — todo detrás de una sola interfaz. Cambiar de proveedor es una línea, nunca código del agente.
+- **Voz sin lock-in.** ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio, [Voicebox](https://github.com/jamiepine/voicebox) local o la voz integrada de tu sistema operativo — todo detrás de una sola interfaz. Cambiar de proveedor es una línea, nunca código del agente.
 - **Habla desde el día uno.** Una instalación nueva habla de inmediato con la voz del sistema (macOS `say` / Linux `espeak` / Windows SAPI). Las llaves de API son opcionales — agrégalas cuando quieras calidad de estudio.
 - **Una configuración, todas las herramientas.** CLI para shells y cron, HTTP para cualquier cosa que haga `fetch`, MCP para agentes con tool calling nativo. Mismas llaves, mismas voces, mismo servidor.
 - **Entra en cualquier harness de IA.** Instaladores de un comando para Claude Code, OpenCode, Pi y Codex: voz automática en cada respuesta (convención `🤖 BOT:`), narración a demanda, cero JSON manual.
@@ -36,7 +36,7 @@ Tus agentes de IA generan texto. **narrate les da voz** — con la voz que quier
 
 | | |
 |---|---|
-| **7 proveedores** | Nube (ElevenLabs, OpenAI, Gemini, xAI, Fish Audio) + local (Voicebox, sistema) — agrega cualquier subconjunto, narrate usa lo que configures |
+| **8 proveedores** | Nube (ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio) + local (Voicebox, sistema) — agrega cualquier subconjunto, narrate usa lo que configures |
 | **3 interfaces** | CLI · HTTP · MCP — un solo código, tres puertas de entrada |
 | **6+ harnesses** | Instaladores de un comando para Claude Code, OpenCode, Pi y Codex; Cursor/Windsurf/Cline vía MCP; cualquier script de shell |
 | **3 sistemas operativos** | macOS (launchd), Windows (SAPI + Task Scheduler), Linux (systemd) — los mismos comandos en todos |
@@ -107,6 +107,7 @@ Opcional. La voz por defecto de macOS funciona bien para notificaciones, pero lo
 | OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | pago por uso, muy barato |
 | Google Gemini | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | tier gratis |
 | xAI | [console.x.ai](https://console.x.ai) | pago por uso |
+| Soniox | [console.soniox.com](https://console.soniox.com) | pago por uso |
 | Fish Audio | [fish.audio](https://fish.audio) | tier dev gratis, luego por uso |
 
 Luego agrega la(s) llave(s) a `~/.env` y cambia el proveedor por defecto:
@@ -136,6 +137,7 @@ narrate "Now I sound much better"
 | **OpenAI TTS** | Nube | `OPENAI_API_KEY` | `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer` |
 | **Google Gemini TTS** | Nube | `GEMINI_API_KEY` | Multilingüe, requiere `ffmpeg` para PCM→WAV |
 | **xAI Grok TTS** | Nube | `XAI_API_KEY` | `eve`, `ara`, `rex`, `sal`, `leo` |
+| **Soniox TTS** | Nube | `SONIOX_API_KEY` | `tts-rt-v2`, catálogo de voces en vivo, `Adrian` por defecto |
 | **Fish Audio** | Nube | `FISH_AUDIO_API_KEY` | Modelos de voz entrenados desde tu audio, tier dev gratis (`s2.1-pro-free`) |
 | **[Voicebox](https://github.com/jamiepine/voicebox)** | Proxy local | ninguna | Auto-detecta en `:17493` : clonación de voz, 7 motores locales, 23 idiomas |
 | **System (`say` / `espeak` / SAPI)** | Local | ninguna | Fallback sin dependencias, funciona offline : macOS `say`, Linux `espeak`, Windows SAPI |
@@ -440,6 +442,17 @@ Mira [`integrations/opencode/`](integrations/opencode/) para detalles, presets d
    }
    ```
 
+### Soniox TTS
+
+1. Obtén una llave en [console.soniox.com](https://console.soniox.com).
+2. `echo 'SONIOX_API_KEY=...' >> ~/.env`
+3. Usa el catálogo en vivo de `tts-rt-v2`; `Adrian` es la voz por defecto.
+4. providerConfig opcional: `{ "model": "tts-rt-v2", "language": "en", "speed": 1.1, "reduce_silence": true, "sample_rate": 24000, "bitrate": 128000 }`.
+
+```json
+"adrian": { "provider": "soniox", "voice_id": "Adrian" }
+```
+
 ### Voicebox (local)
 
 Mira [Voicebox a fondo](#voicebox-a-fondo). En resumen:
@@ -553,6 +566,7 @@ Mapea un nombre amigable a un triple `(provider, voice_id, options)` para cambia
     "narrator":  { "provider": "openai",     "voice_id": "fable",
                    "providerConfig": { "model": "tts-1-hd" } },
     "ara":       { "provider": "xai",        "voice_id": "ara"      },
+    "adrian":    { "provider": "soniox",     "voice_id": "Adrian"   },
     "kore":      { "provider": "gemini",     "voice_id": "Kore"     },
     "me":        { "provider": "fish",       "voice_id": "<model-id>" },
     "bella":     { "provider": "voicebox",   "voice_id": "Bella"    },
@@ -578,6 +592,7 @@ Cada proveedor acepta opciones extra bajo `providerConfig`:
 | OpenAI | `model` (`tts-1` / `tts-1-hd`), `speed` (0.25–4.0) |
 | Gemini | `model` |
 | xAI | `language`, `sample_rate`, `bit_rate`, `codec` |
+| Soniox | `model` (`tts-rt-v2`), `language`, `speed` (0.7-1.3), `reduce_silence`, `sample_rate`, `bitrate` (bits/s) |
 | Fish Audio | `model` (`s2.1-pro-free`, `s2.1-pro`, `s2-pro`, `s1`), `latency` (`normal`/`balanced`/`low`) |
 | Voicebox | `language`, `instruct` (entrega en lenguaje natural de Qwen CustomVoice), `personality` (booleano), `return_audio` (usa `/generate` en vez de `/speak`) |
 | System | `rate` |
@@ -592,7 +607,7 @@ echo "text" | narrate [options]
 Options:
   -v, --voice NAME      Voice preset from voices.json (e.g. fred, researcher)
   -i, --id ID           Raw provider voice id (bypasses preset registry)
-  -p, --provider NAME   elevenlabs | openai | gemini | xai | fish | voicebox | system
+  -p, --provider NAME   elevenlabs | openai | gemini | xai | soniox | fish | voicebox | system
   -l, --language LANG   Force generation language (e.g. es, en, ja, fr).
                         Useful with cross-language voices: a Kokoro Bella
                         (en-trained) speaks proper Spanish phonetics with
@@ -714,7 +729,7 @@ narrate.speak({
   text: string,                  // required, max 5000
   voice?: string,                // preset name from voices.json
   voice_id?: string,             // raw provider voice id
-  provider?: "elevenlabs" | "openai" | "gemini" | "xai" | "fish" | "voicebox" | "system"
+  provider?: "elevenlabs" | "openai" | "gemini" | "xai" | "soniox" | "fish" | "voicebox" | "system"
 }) -> "Spoken via <provider> (voice=<voice>, format=<fmt>, delegated playback)"
 ```
 
@@ -872,9 +887,10 @@ Imprime la salud del servidor, proveedor/voz por defecto, ruta del archivo de vo
 │   ┌──────────────┬──────────────┬────────────┐             │
 │   │ ElevenLabs   │ OpenAI       │ Gemini     │  cloud      │
 │   ├──────────────┼──────────────┼────────────┤             │
-│   │ xAI          │ Fish         │ Voicebox   │  cloud/local│
+│   │ xAI          │ Soniox       │ Fish       │  cloud      │
+│   ├──────────────┼──────────────┼────────────┤             │
+│   │ Voicebox     │ System       │            │  local      │
 │   └──────────────┴──────────────┴────────────┘             │
-│   System (say/espeak/SAPI)                                 │
 │            │                                               │
 │            ▼                                               │
 │   ArrayBuffer  (or delegated=true)                         │
@@ -911,6 +927,7 @@ narrate/
 │   │   ├── openai.ts
 │   │   ├── gemini.ts
 │   │   ├── xai.ts
+│   │   ├── soniox.ts
 │   │   ├── fish.ts
 │   │   ├── voicebox.ts
 │   │   ├── system.ts

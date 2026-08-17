@@ -3,7 +3,7 @@
 # <xbar.version>v0.4.0</xbar.version>
 # <xbar.author>Felo Restrepo</xbar.author>
 # <xbar.author.github>felores</xbar.author.github>
-# <xbar.desc>Text-to-speech gateway that reads AI chat responses aloud. Works with Claude Code, OpenCode, Pi, Codex and any tool you chat with, across ElevenLabs, OpenAI, Gemini, xAI, Fish Audio and system voices.</xbar.desc>
+# <xbar.desc>Text-to-speech gateway that reads AI chat responses aloud. Works with Claude Code, OpenCode, Pi, Codex and any tool you chat with, across ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio and system voices.</xbar.desc>
 # <xbar.abouturl>https://github.com/felores/narrate</xbar.abouturl>
 #
 # SwiftBar plugin for the narrate TTS gateway (5s refresh; EN/ES toggle).
@@ -287,6 +287,9 @@ SAMPLES = {
         ("Zagan ♂",   "zagan"),
         ("Zenith ♂",  "zenith"),
     ],
+    "soniox": [
+        ("Adrian", "Adrian"),
+    ],
     "system": [
         ("Samantha (en-US f)",       "Samantha"),
         ("Daniel (en-GB m)",         "Daniel"),
@@ -308,6 +311,7 @@ DEFAULT_VOICE = {
     "openai": "alloy",
     "gemini": "Kore",
     "xai": "ara",
+    "soniox": "Adrian",
     "system": "Samantha",
 }
 
@@ -326,6 +330,36 @@ try:
         })
     if provider_voices.get("voicebox"):
         DEFAULT_VOICE["voicebox"] = provider_voices["voicebox"][0]["voice_id"]
+except Exception:
+    pass
+
+# Soniox voices are model-specific. Fetch the live tts-rt-v2 catalog, retaining
+# Adrian as the small fallback when no key or request is available.
+try:
+    with open(os.path.expanduser("~/.env")) as f:
+        soniox_key = None
+        for line in f:
+            if line.startswith("SONIOX_API_KEY="):
+                soniox_key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                break
+    if soniox_key:
+        req = urllib.request.Request(
+            "https://api.soniox.com/v1/tts-models",
+            headers={"Authorization": f"Bearer {soniox_key}"},
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            soniox_models = json.loads(resp.read().decode()).get("models", [])
+        soniox_model = next((m for m in soniox_models if m.get("id") == "tts-rt-v2"), None)
+        live = []
+        for v in (soniox_model or {}).get("voices", []):
+            voice_id = v.get("id")
+            if not voice_id:
+                continue
+            details = [v.get("description"), v.get("gender")]
+            label = " · ".join([voice_id, *(d for d in details if d)])
+            live.append({"label": label, "voice_id": voice_id, "langs": []})
+        if live:
+            provider_voices["soniox"] = live
 except Exception:
     pass
 
@@ -423,10 +457,10 @@ try:
 except Exception:
     pass
 
-PROVIDER_ORDER = ["elevenlabs", "openai", "gemini", "xai", "fish", "voicebox", "system"]
+PROVIDER_ORDER = ["elevenlabs", "openai", "gemini", "xai", "soniox", "fish", "voicebox", "system"]
 PROVIDER_NAMES = {
     "elevenlabs": "ElevenLabs", "openai": "OpenAI", "gemini": "Gemini",
-    "xai": "xAI", "fish": "Fish Audio", "voicebox": "Voicebox", "system": "System",
+    "xai": "xAI", "soniox": "Soniox", "fish": "Fish Audio", "voicebox": "Voicebox", "system": "System",
 }
 
 # Keys that can be entered from the menu (env var name per provider).
@@ -435,6 +469,7 @@ KEY_BY_PROVIDER = {
     "openai": "OPENAI_API_KEY",
     "gemini": "GEMINI_API_KEY",
     "xai": "XAI_API_KEY",
+    "soniox": "SONIOX_API_KEY",
     "fish": "FISH_AUDIO_API_KEY",
 }
 

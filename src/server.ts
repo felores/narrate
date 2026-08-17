@@ -368,6 +368,7 @@ serve({
         "OPENAI_API_KEY",
         "GEMINI_API_KEY",
         "XAI_API_KEY",
+        "SONIOX_API_KEY",
         "FISH_AUDIO_API_KEY",
       ]);
       let body: Record<string, unknown>;
@@ -512,7 +513,7 @@ serve({
         `GET  /health\n` +
         `GET  /voices\n` +
         `POST /config  { default_provider, default_voice, auto_provider, auto_voice }\n` +
-        `POST /keys    { OPENAI_API_KEY, GEMINI_API_KEY, ELEVENLABS_API_KEY, XAI_API_KEY, FISH_AUDIO_API_KEY }\n` +
+        `POST /keys    { OPENAI_API_KEY, GEMINI_API_KEY, ELEVENLABS_API_KEY, XAI_API_KEY, SONIOX_API_KEY, FISH_AUDIO_API_KEY }\n` +
         `ALL  /mcp     Streamable HTTP MCP endpoint (tools: speak, list_voices, list_providers)\n`,
       { status: 200, headers: corsHeaders },
     );

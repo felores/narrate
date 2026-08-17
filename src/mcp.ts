@@ -58,7 +58,7 @@ export function createMcpServer(deps: {
       title: "Speak text via TTS",
       description:
         "Generate and play speech for the given text using one of narrate's configured TTS providers " +
-        "(ElevenLabs, OpenAI, Gemini, xAI, Voicebox, system). Audio is played on the host machine. " +
+        "(ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio, Voicebox, system). Audio is played on the host machine. " +
         "Use `voice` for a preset (resolved against voices.json) or `voice_id` to pass a raw provider voice id.",
       inputSchema: {
         text: z
@@ -79,7 +79,7 @@ export function createMcpServer(deps: {
             "Raw provider voice id (e.g. 'Samantha' for system, 'alloy' for openai). Bypasses preset registry.",
           ),
         provider: z
-          .enum(["elevenlabs", "openai", "gemini", "xai", "fish", "voicebox", "system"])
+          .enum(["elevenlabs", "openai", "gemini", "xai", "soniox", "fish", "voicebox", "system"])
           .optional()
           .describe("Provider override. Defaults to server config or preset."),
       },

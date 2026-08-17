@@ -25,6 +25,12 @@
       "voice_id": "ara",
       "description": "Grok TTS feminine voice"
     },
+    "adrian": {
+      "provider": "soniox",
+      "voice_id": "Adrian",
+      "description": "Soniox multilingual voice",
+      "providerConfig": { "language": "en" }
+    },
     "kore": {
       "provider": "gemini",
       "voice_id": "Kore",
