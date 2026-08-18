@@ -608,6 +608,8 @@ def target_picker(target, provider, current_voice, provider_mode):
 # Narrate voice
 print(f"--{t['narrate_voice'].format(voice=sanitize(voice_display_name(default_voice, active_catalog) or '(none)'))} | refresh=true")
 target_picker("narrate", default_provider, default_voice, "narrate-provider")
+if default_voice:
+    print(f"----{t['test_narrate']} | bash={shlex.quote(speak_helper)} param1={shlex.quote(default_voice)} param2={shlex.quote(default_provider)} param3={shlex.quote(t['test_narrate_msg'])} terminal=false refresh=false")
 
 # Session voice
 if auto_is_default:
@@ -617,14 +619,9 @@ else:
     print(f"--{t['session_voice_header'].format(voice=sanitize(voice_display_name(auto_voice, session_catalog)))} | refresh=true")
     target_picker("auto", session_provider, auto_voice, "auto-provider")
 print(f"----{t['use_same']} | bash='{config_helper}' param1='auto-same' terminal=false refresh=false{check_row(auto_is_default)}")
-
-# ─── Test buttons (speak with the current pair, no config change) ──────────
-print("---")
-if default_voice:
-    print(f"--{t['test_narrate']} | bash={shlex.quote(speak_helper)} param1={shlex.quote(default_voice)} param2={shlex.quote(default_provider)} param3={shlex.quote(t['test_narrate_msg'])} terminal=false refresh=false")
 session_voice = auto_voice or default_voice
 if session_voice:
-    print(f"--{t['test_session']} | bash={shlex.quote(speak_helper)} param1={shlex.quote(session_voice)} param2={shlex.quote(session_provider)} param3={shlex.quote(t['test_session_msg'])} terminal=false refresh=false")
+    print(f"----{t['test_session']} | bash={shlex.quote(speak_helper)} param1={shlex.quote(session_voice)} param2={shlex.quote(session_provider)} param3={shlex.quote(t['test_session_msg'])} terminal=false refresh=false")
 
 # ─── Service control ───────────────────────────────────────────────────────
 print("---")
