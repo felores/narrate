@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # <xbar.title>narrate</xbar.title>
-# <xbar.version>v0.5.1</xbar.version>
+# <xbar.version>v0.5.2</xbar.version>
 # <xbar.author>Felo Restrepo</xbar.author>
 # <xbar.author.github>felores</xbar.author.github>
 # <xbar.desc>Text-to-speech gateway for Claude Code, OpenCode, Pi, Codex, DeepSeek Harness and other tools, across ElevenLabs, OpenAI, Gemini, xAI, Soniox, Fish Audio, Voicebox and system voices.</xbar.desc>
@@ -117,6 +117,7 @@ T = {
         "change_key": "Change API key",
         "remove_key": "Remove API key",
         "add_key": "Add API key",
+        "get_key": "Get API key",
         "install_voicebox": "Install / start voicebox",
         "retry": "Retry",
         "voices_section": "Voices",
@@ -149,6 +150,7 @@ T = {
         "change_key": "Cambiar API key",
         "remove_key": "Quitar API key",
         "add_key": "Añadir API key",
+        "get_key": "Obtener API key",
         "install_voicebox": "Instalar / iniciar voicebox",
         "retry": "Reintentar",
         "voices_section": "Voces",
@@ -472,6 +474,14 @@ KEY_BY_PROVIDER = {
     "soniox": "SONIOX_API_KEY",
     "fish": "FISH_AUDIO_API_KEY",
 }
+API_KEY_URL_BY_PROVIDER = {
+    "elevenlabs": "https://elevenlabs.io/app/settings/api-keys",
+    "openai": "https://platform.openai.com/api-keys",
+    "gemini": "https://aistudio.google.com/api-keys",
+    "xai": "https://console.x.ai/team/default/api-keys",
+    "soniox": "https://console.soniox.com/",
+    "fish": "https://fish.audio/app/api-keys/",
+}
 
 def sanitize(s):
     return str(s).replace("|", "-").strip() or "?"
@@ -525,6 +535,7 @@ for prov in PROVIDER_ORDER:
             env_key = KEY_BY_PROVIDER[prov]
             print(f"----🔑 {t['change_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' terminal=false refresh=false")
             print(f"----🗑 {t['remove_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' param3='remove' terminal=false refresh=false")
+            print(f"----↗ {t['get_key']} | bash='/usr/bin/open' param1={shlex.quote(API_KEY_URL_BY_PROVIDER[prov])} terminal=false")
     else:
         row = f"--⚪ {name}"
         reason = cfg.get('reason')
@@ -536,6 +547,7 @@ for prov in PROVIDER_ORDER:
         elif prov in KEY_BY_PROVIDER:
             env_key = KEY_BY_PROVIDER[prov]
             print(f"----🔑 {t['add_key']} | bash='{key_helper}' param1='{env_key}' param2='{prov}' terminal=false refresh=false")
+            print(f"----↗ {t['get_key']} | bash='/usr/bin/open' param1={shlex.quote(API_KEY_URL_BY_PROVIDER[prov])} terminal=false")
 
 # ─── Voices (each target selects its own provider + voice) ──────────────────
 print("---")

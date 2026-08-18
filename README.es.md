@@ -999,6 +999,7 @@ Usa **narrate** cuando quieras un comando que cualquier harness o shell pueda ll
 | ✅ v0.4.0 | Soporte Windows (provider SAPI + bucket de Scoop). Skill canónico `narrate` (setup guiado + previews de voz). Instaladores de un comando para Claude Code + Codex. Fix de inyección siempre-activa de auto-voz. Extensión de Pi. README en español. |
 | ✅ v0.5.0 | Releases de binario único precompilado (sin bun) + pipeline de release en GitHub Actions. Wizard interactivo `narrate setup`. Provider de Fish Audio (modelos de voz entrenados, tier dev gratis). Servicios launchd/systemd en modo binario. Helper de Task Scheduler para Windows. |
 | ✅ v0.5.1 | Provider Soniox `tts-rt-v2` con voces en vivo. Integración con DeepSeek Harness. Actualizador de SwiftBar y fix de compatibilidad para submenús dinámicos deshabilitados. |
+| ✅ v0.5.2 | Enlaces de API keys en SwiftBar y acciones de prueba restauradas para cada voz. |
 | Planeado v0.6 | Modo CLI `--direct` (omite el servidor, llama a los proveedores directo) |
 | Planeado v0.7 | TTS en streaming sobre WebSocket |
 | Planeado v0.8 | Tokens de auth para `/notify` y `/mcp` (actualmente solo localhost) |

@@ -1004,6 +1004,7 @@ Use **narrate** when you want one command that any harness or shell can call, mi
 | ✅ v0.4.0 | Windows support (SAPI system provider + Scoop bucket). Canonical `narrate` skill (guided setup + voice previews). One-command installers for Claude Code + Codex. Auto-voice always-on injection fix. Pi extension. Spanish README. |
 | ✅ v0.5.0 | Pre-built single-binary releases (no bun) + GitHub Actions release pipeline. Interactive `narrate setup` wizard. Fish Audio provider (trained voice models, free dev tier). Binary-mode launchd/systemd services. Windows Task Scheduler helper. |
 | ✅ v0.5.1 | Soniox `tts-rt-v2` provider with live voices. DeepSeek Harness integration. SwiftBar updater and compatibility fix for disabled dynamic submenus. |
+| ✅ v0.5.2 | SwiftBar API-key links and restored per-voice test actions. |
 | Planned v0.6 | `--direct` CLI mode (skip server, call providers directly) |
 | Planned v0.7 | Streaming TTS over WebSocket |
 | Planned v0.8 | Auth tokens for `/notify` and `/mcp` (currently localhost-only) |

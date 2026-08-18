@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.2 — 2026-08-17
+
+### Added
+- SwiftBar provider menus now link directly to each cloud provider's official API-key page, localized in English and Spanish.
+
+### Fixed
+- Restored the narrate and session test actions inside their respective SwiftBar voice menus.
+
 ## v0.5.1 — 2026-08-17
 
 ### Added
