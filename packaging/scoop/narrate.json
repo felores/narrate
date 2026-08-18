@@ -1,12 +1,12 @@
 {
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Provider-agnostic TTS gateway and CLI for AI coding harnesses",
   "homepage": "https://github.com/felores/narrate",
   "license": "MIT",
   "depends": "main/bun",
-  "url": "https://github.com/felores/narrate/archive/refs/tags/v0.5.1.tar.gz",
-  "hash": "006067a885be3508e53f6dcd5954b7206a58d44544a109d41a495b11f6b90853",
-  "extract_dir": "narrate-0.5.1",
+  "url": "https://github.com/felores/narrate/archive/refs/tags/v0.5.2.tar.gz",
+  "hash": "7a91e3bb26f2349381e509f7afbbbbdf2bbf6b8b2b86913ecdc32eec9a28bbaa",
+  "extract_dir": "narrate-0.5.2",
   "pre_install": [
     "Set-Content -Encoding Ascii -Path \"$dir\\narrate.cmd\" -Value '@bun run \"%~dp0src\\cli.ts\" %*'",
     "Set-Content -Encoding Ascii -Path \"$dir\\narrate-server.cmd\" -Value '@bun run \"%~dp0src\\server.ts\" %*'"
