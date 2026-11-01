@@ -370,3 +370,17 @@ The user's hook setup at `~/.claude/hooks/deny_check.sh` blocks shell commands a
 - ❌ Per-harness skill copies. They drift — there's one canonical `skills/narrate/` that installers copy.
 - ❌ Interpolating user text into the Windows PowerShell SAPI command. Pass via `NARRATE_TEXT`/`NARRATE_VOICE` env vars to avoid injection.
 - ❌ Blaming IDE Escape for cut-off narrations. The request was already received in full by the server (it doesn't wire client aborts to providers) — the real killer was the next auto-voice `/speak` preempting voicebox playback. Fixed with the narration queue; don't "fix" this client-side.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues in `felores/narrate` via the `gh` CLI, always with `--repo felores/narrate`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical roles: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
