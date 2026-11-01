@@ -595,8 +595,8 @@ Each provider accepts extra options under `providerConfig`:
 | Provider | Useful keys |
 |---|---|
 | ElevenLabs | `model_id`, `voice_settings: {stability, similarity_boost, style, use_speaker_boost}` |
-| OpenAI | `model` (`tts-1` / `tts-1-hd`), `speed` (0.25–4.0) |
-| Gemini | `model` |
+| OpenAI | `model` (`tts-1` / `tts-1-hd`; all OpenAI TTS models shut down 2027-01-06), `speed` (0.25–4.0) |
+| Gemini | `model` (`gemini-2.5-flash-preview-tts` default; `gemini-3.8-flash-lite-tts` is cheaper, untested here) |
 | xAI | `language`, `sample_rate`, `bit_rate`, `codec` |
 | Soniox | `model` (`tts-rt-v2`), `language`, `speed` (0.7-1.3), `reduce_silence`, `sample_rate`, `bitrate` (bits/s) |
 | Fish Audio | `model` (`s2.1-pro-free`, `s2.1-pro`, `s2-pro`, `s1`), `latency` (`normal`/`balanced`/`low`) |

@@ -3,7 +3,8 @@
 Use this to help the user pick a provider and a voice. Always share the
 **preview URL** so they can hear voices before committing. Voice/model lists are
 time-sensitive — verified **2026-07-31**; if something 404s, the provider
-changed it, so check their docs.
+changed it, so check their docs. Pricing and the OpenAI, Gemini, ElevenLabs and
+Fish model notes were re-verified **2026-10-31**.
 
 narrate maps friendly preset names to a `{provider, voice_id/voice}` pair in
 `~/.config/narrate/voices.json` (see `setup.md`). The values below are what you
@@ -30,6 +31,8 @@ The zero-setup default. Works everywhere, no account.
   (TTS playground: https://elevenlabs.io/app/speech-synthesis/text-to-speech)
 - **API key env var:** `ELEVENLABS_API_KEY`
 - **Create key:** https://elevenlabs.io/app/settings/api-keys
+- **Pricing (2026-10-31):** $0.08/1K chars for `eleven_v3` and
+  `eleven_multilingual_v2`, $0.04/1K for `eleven_flash_v2_5`.
 - **Voices:** referenced by opaque `voice_id` strings, not fixed names. The user
   browses the library, adds a voice to their workspace, and copies its
   `voice_id`. ⚠️ The classic default IDs (Rachel `21m00Tcm4TlvDq8ikWAM`, Adam
@@ -52,6 +55,12 @@ The zero-setup default. Works everywhere, no account.
   `onyx`, `sage`, `shimmer`, `verse`, `marin`, `cedar`. (`marin`/`cedar` are
   newest/best.) Note: the legacy `tts-1`/`tts-1-hd` models only support the
   smaller set — `alloy, ash, coral, echo, fable, onyx, nova, sage, shimmer`.
+- ⚠️ **Shutdown 2027-01-06 (verified 2026-10-31):** OpenAI's guide says
+  `gpt-4o-mini-tts`, `tts-1` and `tts-1-hd` stop working on `/v1/audio/speech`.
+  Its suggested replacement (`gpt-realtime-2.1-mini`) uses the Realtime API,
+  which narrate does not call. Don't recommend OpenAI for new setups.
+  Pricing: `tts-1` $15/M chars, `tts-1-hd` $30/M chars, `gpt-4o-mini-tts`
+  $0.60/M text tokens in + $12/M audio tokens out.
 - **Models:** narrate defaults to `gpt-4o-mini-tts` (supports an `instructions`
   param for tone/accent) — override via the preset's `providerConfig.model`.
   Legacy `tts-1`/`tts-1-hd` only support the 9-voice subset above.
@@ -70,9 +79,13 @@ The zero-setup default. Works everywhere, no account.
   Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam,
   Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia,
   Sadaltager, Sulafat.
-- **Models:** `gemini-2.5-flash-preview-tts` (narrate default),
-  `gemini-2.5-pro-preview-tts`, `gemini-3.1-flash-tts-preview` (newest per docs,
-  verified 2026-07-31).
+- **Models:** `gemini-2.5-flash-preview-tts` (narrate default, ~$0.015/min),
+  `gemini-2.5-pro-preview-tts` (~$0.030/min), `gemini-3.1-flash-tts-preview`
+  (legacy preview). Stable 3.8 models listed 2026-10-31:
+  `gemini-3.8-flash-tts` (~$0.0135/min) and `gemini-3.8-flash-lite-tts`
+  (~$0.009/min, cheapest cloud option) — both add voice replication. Not yet
+  tested with narrate: set via `providerConfig.model`, then confirm audio
+  plays before making either a default. Several prices double on 2027-01-01.
 - **Output:** raw PCM (s16le, 24 kHz, mono) — narrate converts to WAV, which
   **requires `ffmpeg` installed**. If audio fails on Gemini, check ffmpeg.
 - **narrate usage:** `narrate --provider gemini --id Puck "..."`
@@ -111,7 +124,8 @@ The zero-setup default. Works everywhere, no account.
   https://fish.audio/models. `narrate verify --test` also lists the user's
   trained models via `GET /model`.
 - **Models (`model` header):** `s2.1-pro-free` (narrate default, free dev
-  tier), `s2.1-pro`, `s2-pro`, `s1`. Override via `FISH_AUDIO_MODEL` env or a
+  tier), `s2.1-pro` ($15/M UTF-8 bytes), `s2-pro` (same price), `s1`
+  (deprecated; retired 2026-12-31 and then served as `s2.1-pro`). Override via `FISH_AUDIO_MODEL` env or a
   preset's `providerConfig.model`.
 - **narrate usage:** `narrate --provider fish --id <model-id> "..."`
 - Best for: users who want their own (or cloned) voice, free tier.
