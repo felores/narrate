@@ -27,3 +27,9 @@ narrate-*.wav
 
 # skill eval workspace (dev-only, not shipped)
 skills/narrate-workspace/
+
+# local agent and harness state (machine-specific, deletable)
+.scratchpad/
+.scratchpad-settings-backup.json
+.pi/
+opencode.json
