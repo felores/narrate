@@ -51,7 +51,7 @@ export class GeminiProvider implements Provider {
     }
 
     const cfg = (opts.providerConfig ?? {}) as GeminiConfig;
-    const model = cfg.model ?? "gemini-2.5-flash-preview-tts";
+    const model = cfg.model ?? "gemini-3.8-flash-tts";
     const voiceName = voice || "Kore";
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -86,7 +86,7 @@ export class GeminiProvider implements Provider {
     const pcmPath = `/tmp/narrate-gemini-${ts}.pcm`;
     const wavPath = `/tmp/narrate-gemini-${ts}.wav`;
 
-    writeFileSync(pcmPath, Buffer.from(b64, "base64"));
+    writeFileSync(pcmPath, trimEdgeNoise(Buffer.from(b64, "base64")));
 
     try {
       await new Promise<void>((resolve, reject) => {
@@ -137,6 +137,51 @@ export class GeminiProvider implements Provider {
       }
     }
   }
+}
+
+// The 3.x TTS models append ~120ms of full-scale noise after the speech has
+// faded to silence. Cut it: trailing 20ms windows at full scale (max 300ms)
+// that follow a quiet window.
+export function trimEdgeNoise(pcm: Buffer): Buffer {
+  return trimTailNoise(trimHeadClick(pcm));
+}
+
+// They also start with a ~2ms full-scale click followed by silence.
+function trimHeadClick(pcm: Buffer): Buffer {
+  const at = (n: number) =>
+    n * 2 + 1 < pcm.length ? Math.abs(pcm.readInt16LE(n * 2)) : 0;
+  let hit = false;
+  let last = -1;
+  for (let n = 0; n < 120; n++) {
+    if (at(n) >= 20000) hit = true;
+    if (at(n) >= 2000) last = n;
+  }
+  if (!hit) return pcm;
+  for (let n = 120; n < 600; n++) if (at(n) >= 2000) return pcm;
+  return pcm.subarray((last + 1) * 2);
+}
+
+function trimTailNoise(pcm: Buffer): Buffer {
+  const win = 480; // 20ms at 24kHz
+  const peak = (w: number) => {
+    let max = 0;
+    for (
+      let i = w * win * 2;
+      i + 1 < (w + 1) * win * 2 && i + 1 < pcm.length;
+      i += 2
+    ) {
+      max = Math.max(max, Math.abs(pcm.readInt16LE(i)));
+    }
+    return max;
+  };
+  let w = Math.floor(pcm.length / (win * 2)) - 1;
+  let noisy = 0;
+  while (w >= 0 && peak(w) >= 32000) {
+    noisy++;
+    w--;
+  }
+  if (noisy === 0 || noisy > 15 || w < 0 || peak(w) >= 2000) return pcm;
+  return pcm.subarray(0, (w + 1) * win * 2);
 }
 
 async function ffmpegAvailable(): Promise<boolean> {

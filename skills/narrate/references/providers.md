@@ -79,13 +79,12 @@ The zero-setup default. Works everywhere, no account.
   Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam,
   Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia,
   Sadaltager, Sulafat.
-- **Models:** `gemini-2.5-flash-preview-tts` (narrate default, ~$0.015/min),
+- **Models:** `gemini-3.8-flash-tts` (narrate default, ~$0.0135/min, adds voice
+  replication), `gemini-3.8-flash-lite-tts` (~$0.009/min, cheapest cloud option,
+  not yet tested with narrate), `gemini-2.5-flash-preview-tts` (~$0.015/min;
+  fails on very short text such as "hola" with `finishReason: OTHER` or a 400),
   `gemini-2.5-pro-preview-tts` (~$0.030/min), `gemini-3.1-flash-tts-preview`
-  (legacy preview). Stable 3.8 models listed 2026-10-31:
-  `gemini-3.8-flash-tts` (~$0.0135/min) and `gemini-3.8-flash-lite-tts`
-  (~$0.009/min, cheapest cloud option) — both add voice replication. Not yet
-  tested with narrate: set via `providerConfig.model`, then confirm audio
-  plays before making either a default. Several prices double on 2027-01-01.
+  (legacy preview). Set another via `providerConfig.model`. Several prices double on 2027-01-01.
 - **Output:** raw PCM (s16le, 24 kHz, mono) — narrate converts to WAV, which
   **requires `ffmpeg` installed**. If audio fails on Gemini, check ffmpeg.
 - **narrate usage:** `narrate --provider gemini --id Puck "..."`
