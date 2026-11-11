@@ -161,27 +161,29 @@ function trimHeadClick(pcm: Buffer): Buffer {
   return pcm.subarray((last + 1) * 2);
 }
 
+// The burst is not window-aligned and carries runs of exact digital zeros, so
+// scan per sample: walk back from the end, treating zeros as part of the
+// burst, until 50ms of real (non-zero) quiet, the speech's fade-out, and cut
+// right after it. Untouched when the last 20ms are not full-scale or no quiet
+// gap appears within 500ms.
 function trimTailNoise(pcm: Buffer): Buffer {
-  const win = 480; // 20ms at 24kHz
-  const peak = (w: number) => {
-    let max = 0;
-    for (
-      let i = w * win * 2;
-      i + 1 < (w + 1) * win * 2 && i + 1 < pcm.length;
-      i += 2
-    ) {
-      max = Math.max(max, Math.abs(pcm.readInt16LE(i)));
+  const n = pcm.length >> 1;
+  const at = (i: number) => Math.abs(pcm.readInt16LE(i * 2));
+  let loud = false;
+  for (let i = n - 1; i >= Math.max(0, n - 480) && !loud; i--)
+    loud = at(i) >= 30000;
+  if (!loud) return pcm;
+  let quiet = 0;
+  let quietEnd = -1;
+  for (let i = n - 1; i >= Math.max(0, n - 12000); i--) {
+    const v = at(i);
+    if (v >= 2000) quiet = 0;
+    else if (v > 0) {
+      if (quiet === 0) quietEnd = i;
+      if (++quiet >= 1200) return pcm.subarray(0, (quietEnd + 1) * 2);
     }
-    return max;
-  };
-  let w = Math.floor(pcm.length / (win * 2)) - 1;
-  let noisy = 0;
-  while (w >= 0 && peak(w) >= 32000) {
-    noisy++;
-    w--;
   }
-  if (noisy === 0 || noisy > 15 || w < 0 || peak(w) >= 2000) return pcm;
-  return pcm.subarray(0, (w + 1) * win * 2);
+  return pcm;
 }
 
 async function ffmpegAvailable(): Promise<boolean> {
