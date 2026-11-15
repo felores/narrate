@@ -139,9 +139,9 @@ export class GeminiProvider implements Provider {
   }
 }
 
-// The 3.x TTS models append ~120ms of full-scale noise after the speech has
-// faded to silence. Cut it: trailing 20ms windows at full scale (max 300ms)
-// that follow a quiet window.
+// The 3.x TTS models append ~150ms of full-scale noise after the speech has
+// faded to silence, and start with a click. Cut both; other output is
+// returned as is.
 export function trimEdgeNoise(pcm: Buffer): Buffer {
   return trimTailNoise(trimHeadClick(pcm));
 }
@@ -161,27 +161,37 @@ function trimHeadClick(pcm: Buffer): Buffer {
   return pcm.subarray((last + 1) * 2);
 }
 
+// The burst is not window-aligned and carries runs of exact digital zeros, so
+// scan per sample: walk back from the end, skipping zeros, until 50ms of
+// non-zero quiet (the speech's fade-out), and cut right after it. Untouched
+// unless a sample in the last 20ms reaches 30000, the quiet shows up within
+// 500ms, and at most 10ms of non-zero samples sit between it and the burst
+// onset: speech that runs into the burst without a fade keeps the noise
+// rather than losing its last word.
 function trimTailNoise(pcm: Buffer): Buffer {
-  const win = 480; // 20ms at 24kHz
-  const peak = (w: number) => {
-    let max = 0;
-    for (
-      let i = w * win * 2;
-      i + 1 < (w + 1) * win * 2 && i + 1 < pcm.length;
-      i += 2
-    ) {
-      max = Math.max(max, Math.abs(pcm.readInt16LE(i)));
+  const n = pcm.length >> 1;
+  const at = (i: number) => Math.abs(pcm.readInt16LE(i * 2));
+  let loud = false;
+  for (let i = n - 1; i >= Math.max(0, n - 480) && !loud; i--)
+    loud = at(i) >= 30000;
+  if (!loud) return pcm;
+  let quiet = 0;
+  let quietEnd = -1;
+  let sinceOnset = 0; // non-zero samples since the lowest full-scale one
+  for (let i = n - 1; i >= Math.max(0, n - 12000); i--) {
+    const v = at(i);
+    if (v >= 30000) sinceOnset = 0;
+    else if (v > 0) sinceOnset++;
+    if (v >= 2000) quiet = 0;
+    else if (v > 0) {
+      if (quiet === 0) quietEnd = i;
+      if (++quiet >= 1200)
+        return sinceOnset - quiet <= 240
+          ? pcm.subarray(0, (quietEnd + 1) * 2)
+          : pcm;
     }
-    return max;
-  };
-  let w = Math.floor(pcm.length / (win * 2)) - 1;
-  let noisy = 0;
-  while (w >= 0 && peak(w) >= 32000) {
-    noisy++;
-    w--;
   }
-  if (noisy === 0 || noisy > 15 || w < 0 || peak(w) >= 2000) return pcm;
-  return pcm.subarray(0, (w + 1) * win * 2);
+  return pcm;
 }
 
 async function ffmpegAvailable(): Promise<boolean> {
