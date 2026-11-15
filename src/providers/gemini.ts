@@ -139,9 +139,9 @@ export class GeminiProvider implements Provider {
   }
 }
 
-// The 3.x TTS models append ~120ms of full-scale noise after the speech has
-// faded to silence. Cut it: trailing 20ms windows at full scale (max 300ms)
-// that follow a quiet window.
+// The 3.x TTS models append ~150ms of full-scale noise after the speech has
+// faded to silence, and start with a click. Cut both; other output is
+// returned as is.
 export function trimEdgeNoise(pcm: Buffer): Buffer {
   return trimTailNoise(trimHeadClick(pcm));
 }
