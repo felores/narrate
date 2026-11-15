@@ -162,10 +162,11 @@ function trimHeadClick(pcm: Buffer): Buffer {
 }
 
 // The burst is not window-aligned and carries runs of exact digital zeros, so
-// scan per sample: walk back from the end, treating zeros as part of the
-// burst, until 50ms of real (non-zero) quiet, the speech's fade-out, and cut
-// right after it. Untouched when the last 20ms are not full-scale or no quiet
-// gap appears within 500ms.
+// scan per sample: walk back from the end, skipping zeros, until 50ms of
+// non-zero quiet (the speech's fade-out), and cut right after it. Untouched
+// unless a sample in the last 20ms reaches 30000, the quiet shows up within
+// 500ms, and it ends within 100ms of the burst onset: speech that runs into
+// the burst without a fade keeps the noise rather than losing its last word.
 function trimTailNoise(pcm: Buffer): Buffer {
   const n = pcm.length >> 1;
   const at = (i: number) => Math.abs(pcm.readInt16LE(i * 2));
@@ -175,12 +176,17 @@ function trimTailNoise(pcm: Buffer): Buffer {
   if (!loud) return pcm;
   let quiet = 0;
   let quietEnd = -1;
+  let onset = n;
   for (let i = n - 1; i >= Math.max(0, n - 12000); i--) {
     const v = at(i);
+    if (v >= 30000) onset = i;
     if (v >= 2000) quiet = 0;
     else if (v > 0) {
       if (quiet === 0) quietEnd = i;
-      if (++quiet >= 1200) return pcm.subarray(0, (quietEnd + 1) * 2);
+      if (++quiet >= 1200)
+        return onset - quietEnd <= 2400
+          ? pcm.subarray(0, (quietEnd + 1) * 2)
+          : pcm;
     }
   }
   return pcm;
